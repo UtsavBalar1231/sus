@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Testing & Coverage
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Linting & Type Checking
+.mypy_cache/
+.ruff_cache/
+
+# uv
+.venv/
+uv.lock
+
+# Scraped content
+output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Scrapy
+.scrapy/
+
+# Claude Code
+CLAUDE.md
+
+# Todos
+TODO.md

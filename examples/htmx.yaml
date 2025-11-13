@@ -1,0 +1,105 @@
+# htmx Documentation Scraper Configuration
+# Small-medium documentation site (~30-50 pages) - multiple sections
+
+# Project metadata
+name: htmx-docs
+description: htmx web framework documentation scraper
+
+# Site configuration
+site:
+  # Starting URLs for the crawl (multiple entry points)
+  start_urls:
+    - https://htmx.org/docs/
+
+  # Allowed domains
+  allowed_domains:
+    - htmx.org
+
+# Crawling rules and behavior
+crawling:
+  # Follow links in documentation, reference, attributes, and examples sections
+  include_patterns:
+    - pattern: "/docs/"
+      type: prefix
+    - pattern: "/reference/"
+      type: prefix
+    - pattern: "/attributes/"
+      type: prefix
+    - pattern: "/examples/"
+      type: prefix
+
+  # Exclude essays and blog posts (optional - focus on core docs)
+  exclude_patterns:
+    - pattern: "/essays/"
+      type: prefix
+    - pattern: "/posts/"
+      type: prefix
+    - pattern: "*.pdf"
+      type: glob
+    - pattern: "*.zip"
+      type: glob
+
+  # No depth limit (crawl entire doc tree)
+  depth_limit: null
+
+  # No page limit (scrape all documentation)
+  max_pages: null
+
+  # Rate limiting (be respectful)
+  delay_between_requests: 0.5
+
+  # Concurrency settings
+  global_concurrent_requests: 8
+  per_domain_concurrent_requests: 2
+
+  # Retry settings
+  max_retries: 3
+  retry_backoff: 2.0
+
+  # Respect robots.txt
+  respect_robots_txt: true
+
+  # Default link selector
+  link_selectors:
+    - a[href]
+
+# Output configuration
+output:
+  # Base output directory
+  base_dir: output
+
+  # Site-specific subdirectory
+  site_dir: htmx
+
+  # Directory structure
+  structure:
+    docs_dir: docs
+    assets_dir: assets
+
+  # Path mapping: URL to file path conversion
+  path_mapping:
+    mode: auto
+    strip_prefix: null  # Keep full paths to preserve section structure
+    index_file: index.md
+
+  # Markdown generation settings
+  markdown:
+    add_frontmatter: true
+    frontmatter_fields:
+      - title
+      - url
+      - scraped_at
+
+# Asset handling
+assets:
+  # Enable asset downloads
+  download: true
+
+  # Asset types to download
+  types:
+    - images
+    - css
+    - js
+
+  # Rewrite asset paths to relative paths
+  rewrite_paths: true

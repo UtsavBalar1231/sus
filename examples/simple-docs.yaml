@@ -1,0 +1,67 @@
+# Simple Documentation Scraper Example
+# Minimal configuration showing only required fields
+
+# Project name (used for directory naming)
+name: my-docs
+
+# Human-readable description
+description: Simple documentation scraper example
+
+# Site to scrape
+site:
+  # Where to start crawling (required)
+  start_urls:
+    - https://example.com/docs/
+
+  # Restrict crawling to these domains (required)
+  allowed_domains:
+    - example.com
+
+# Crawling behavior (all fields optional, defaults shown)
+crawling:
+  # Only scrape pages matching this pattern
+  include_patterns:
+    - pattern: "/docs/"
+      type: prefix
+
+  # Polite crawling: wait 0.5 seconds between requests
+  delay_between_requests: 0.5
+
+  # Download up to 8 pages concurrently
+  global_concurrent_requests: 8
+
+# Output settings (all optional, defaults shown)
+output:
+  # Where to save scraped content
+  base_dir: output
+
+  # Directory structure
+  docs_dir: docs
+  assets_dir: assets
+
+  # URL to file path mapping
+  path_mapping:
+    # Automatically convert URLs to file paths
+    mode: auto
+    # Strip this prefix from URLs: /docs/ -> /
+    strip_prefix: /docs
+    # Name for directory index pages
+    index_file: index.md
+
+  # Add YAML frontmatter to markdown files
+  markdown:
+    add_frontmatter: true
+    frontmatter_fields:
+      - title
+      - url
+
+# Asset handling (optional)
+assets:
+  # Download images, CSS, and JS files
+  download: true
+  types:
+    - images
+    - css
+    - js
+  # Rewrite asset URLs to relative paths
+  rewrite_paths: true

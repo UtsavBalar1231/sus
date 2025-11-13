@@ -1,0 +1,97 @@
+# Aptly Documentation Scraper Configuration
+# This config replicates the original aptly-docs-scraper behavior
+
+# Project metadata
+name: aptly-docs
+description: Complete Aptly documentation scraper (~85 pages)
+
+# Site configuration
+site:
+  # Starting URLs for the crawl
+  start_urls:
+    - https://www.aptly.info/doc/
+
+  # Allowed domains (both www and non-www variants)
+  allowed_domains:
+    - aptly.info
+    - www.aptly.info
+
+# Crawling rules and behavior
+crawling:
+  # Only follow links under /doc/ path
+  include_patterns:
+    - pattern: "^/doc/"
+      type: regex
+
+  # Exclude binary files
+  exclude_patterns:
+    - pattern: "*.pdf"
+      type: glob
+    - pattern: "*.zip"
+      type: glob
+    - pattern: "*.tar.gz"
+      type: glob
+
+  # No depth limit (crawl entire doc tree)
+  depth_limit: null
+
+  # No page limit (scrape all documentation)
+  max_pages: null
+
+  # Rate limiting (original: 0.5s delay)
+  delay_between_requests: 0.5
+
+  # Concurrency settings (original: 8 concurrent requests)
+  global_concurrent_requests: 8
+  per_domain_concurrent_requests: 2
+
+  # Retry settings
+  max_retries: 3
+  retry_backoff: 2.0
+
+  # Respect robots.txt
+  respect_robots_txt: true
+
+  # Default link selector (find all <a> tags)
+  link_selectors:
+    - a[href]
+
+# Output configuration
+output:
+  # Base output directory
+  base_dir: output
+
+  # Site-specific subdirectory (for multi-site support)
+  site_dir: null
+
+  # Directory structure
+  docs_dir: docs
+  assets_dir: assets
+
+  # Path mapping: URL to file path conversion
+  path_mapping:
+    mode: auto
+    strip_prefix: /doc
+    index_file: index.md
+
+  # Markdown generation settings
+  markdown:
+    add_frontmatter: true
+    frontmatter_fields:
+      - title
+      - url
+      - scraped_at
+
+# Asset handling
+assets:
+  # Enable asset downloads
+  download: true
+
+  # Asset types to download
+  types:
+    - images
+    - css
+    - js
+
+  # Rewrite asset paths to relative paths
+  rewrite_paths: true

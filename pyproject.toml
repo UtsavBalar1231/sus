@@ -1,0 +1,62 @@
+[project]
+name = "sus"
+version = "0.1.0"
+description = "Simple Universal (Docs) Scraper"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx",
+    "pydantic>=2.9",
+    "pydantic-settings",
+    "typer",
+    "markdownify",
+    "rich",
+    "pyyaml",
+    "lxml",
+    "robotexclusionrulesparser>=1.7.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-httpx",
+    "mypy",
+    "ruff",
+    "types-pyyaml",
+]
+
+[project.scripts]
+sus = "sus.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sus"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "TCH"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
+
+[tool.mypy]
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[dependency-groups]
+dev = [
+    "lxml-stubs>=0.5.1",
+]

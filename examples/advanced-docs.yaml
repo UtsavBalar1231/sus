@@ -1,0 +1,145 @@
+# Advanced Documentation Scraper Configuration
+# Comprehensive example showcasing all available features
+
+# Project metadata
+name: advanced-docs
+description: Advanced multi-site documentation scraper with all features enabled
+
+# Site configuration
+site:
+  # Multiple entry points for crawling
+  start_urls:
+    - https://docs.example.com/
+    - https://docs.example.com/api/
+    - https://docs.example.com/guides/
+
+  # Restrict to specific domains and subdomains
+  allowed_domains:
+    - docs.example.com
+    - api.example.com
+    - cdn.example.com
+
+# Advanced crawling rules
+crawling:
+  # Complex include patterns (whitelist)
+  include_patterns:
+    # Regex: only paths starting with /docs/ or /api/
+    - pattern: "^/(docs|api)/"
+      type: regex
+
+    # Glob: match versioned docs (e.g., /v1.0/, /v2.0/)
+    - pattern: "/v*/??*"
+      type: glob
+
+    # Prefix: simple prefix matching for guides section
+    - pattern: "/guides/"
+      type: prefix
+
+  # Exclude patterns (blacklist - takes precedence over includes)
+  exclude_patterns:
+    # Skip internal/admin pages
+    - pattern: "^/(admin|internal)/"
+      type: regex
+
+    # Skip binary downloads
+    - pattern: "*.{pdf,zip,tar.gz,exe,dmg}"
+      type: glob
+
+    # Skip specific paths
+    - pattern: "/changelog/"
+      type: prefix
+    - pattern: "/search"
+      type: prefix
+
+  # Crawl depth limit: how many links deep from start_urls
+  # null = unlimited, 0 = only start_urls, 1 = start_urls + direct links, etc.
+  depth_limit: 5
+
+  # Maximum pages to scrape (useful for testing or sampling)
+  # null = unlimited
+  max_pages: 1000
+
+  # Rate limiting: delay between requests to same domain (seconds)
+  delay_between_requests: 1.0
+
+  # Global concurrency: total concurrent requests across all domains
+  global_concurrent_requests: 16
+
+  # Per-domain concurrency: max concurrent requests per domain
+  # Prevents overwhelming a single server
+  per_domain_concurrent_requests: 4
+
+  # Retry behavior for failed requests
+  max_retries: 5
+  retry_backoff: 2.0  # Exponential backoff multiplier (2.0 = 1s, 2s, 4s, 8s, 16s)
+
+  # Respect robots.txt (set false to ignore, but be respectful!)
+  respect_robots_txt: true
+
+  # Custom CSS selectors for link extraction
+  # Useful for sites with specific navigation structures
+  link_selectors:
+    - a[href]                    # Standard links
+    - nav a                      # Navigation links
+    - article a                  # Links within articles
+    - .docs-sidebar a            # Sidebar navigation
+    - .pagination a              # Pagination links
+
+# Output configuration
+output:
+  # Base directory for all scraped sites
+  base_dir: output
+
+  # Site-specific subdirectory (enables multi-site scraping)
+  # Creates output/<site_dir>/ structure
+  site_dir: advanced-example
+
+  # Directory structure within site_dir
+  docs_dir: docs      # Markdown files go here
+  assets_dir: assets  # Images, CSS, JS go here
+
+  # Path mapping: how URLs map to file paths
+  path_mapping:
+    # Mode: "auto" uses intelligent URL-to-path conversion
+    mode: auto
+
+    # Strip this prefix from URLs before mapping
+    # Example: https://docs.example.com/docs/guide/ -> /guide/ -> guide.md
+    strip_prefix: /docs
+
+    # Filename for directory URLs (e.g., /guide/ -> guide/index.md)
+    index_file: index.md
+
+  # Markdown generation settings
+  markdown:
+    # Add YAML frontmatter to top of each file
+    add_frontmatter: true
+
+    # Which metadata fields to include in frontmatter
+    frontmatter_fields:
+      - title           # Page title from <title> tag
+      - url             # Original source URL
+      - scraped_at      # Timestamp when scraped
+      - description     # Meta description if available
+      - tags            # Keywords/tags if available
+
+# Asset handling configuration
+assets:
+  # Enable asset downloads
+  download: true
+
+  # Which asset types to download
+  types:
+    - images          # PNG, JPG, GIF, SVG, WebP, etc.
+    - css             # Stylesheets
+    - js              # JavaScript files
+    - fonts           # Web fonts (WOFF, WOFF2, TTF, etc.)
+
+  # Rewrite asset URLs in markdown to relative paths
+  # Links like https://docs.example.com/img/logo.png become ../assets/img/logo.png
+  rewrite_paths: true
+
+# Example usage:
+# sus scrape --config examples/advanced-docs.yaml
+# sus scrape --config examples/advanced-docs.yaml --dry-run
+# sus scrape --config examples/advanced-docs.yaml --max-pages 10 --verbose

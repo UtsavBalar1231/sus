@@ -1,0 +1,99 @@
+# Bottle.py Documentation Scraper Configuration
+# Small documentation site (~15-20 pages) - good for initial testing
+
+# Project metadata
+name: bottle-docs
+description: Bottle.py web framework documentation scraper
+
+# Site configuration
+site:
+  # Starting URL for the crawl
+  start_urls:
+    - https://bottlepy.org/docs/dev/
+
+  # Allowed domains
+  allowed_domains:
+    - bottlepy.org
+
+# Crawling rules and behavior
+crawling:
+  # Only follow links under /docs/dev/ path
+  include_patterns:
+    - pattern: "/docs/dev/"
+      type: prefix
+
+  # Exclude older version docs and non-documentation files
+  exclude_patterns:
+    - pattern: "/docs/0.12/"
+      type: prefix
+    - pattern: "/docs/0.11/"
+      type: prefix
+    - pattern: "*.pdf"
+      type: glob
+    - pattern: "*.zip"
+      type: glob
+
+  # No depth limit (crawl entire doc tree)
+  depth_limit: null
+
+  # No page limit (scrape all documentation)
+  max_pages: null
+
+  # Rate limiting (be respectful)
+  delay_between_requests: 0.5
+
+  # Concurrency settings
+  global_concurrent_requests: 8
+  per_domain_concurrent_requests: 2
+
+  # Retry settings
+  max_retries: 3
+  retry_backoff: 2.0
+
+  # Respect robots.txt
+  respect_robots_txt: true
+
+  # Default link selector
+  link_selectors:
+    - a[href]
+
+# Output configuration
+output:
+  # Base output directory
+  base_dir: output
+
+  # Site-specific subdirectory
+  site_dir: bottle
+
+  # Directory structure
+  structure:
+    docs_dir: docs
+    assets_dir: assets
+
+  # Path mapping: URL to file path conversion
+  path_mapping:
+    mode: auto
+    strip_prefix: /docs/dev
+    index_file: index.md
+
+  # Markdown generation settings
+  markdown:
+    add_frontmatter: true
+    frontmatter_fields:
+      - title
+      - url
+      - scraped_at
+
+# Asset handling
+assets:
+  # Enable asset downloads
+  download: true
+
+  # Asset types to download
+  types:
+    - images
+    - css
+    - js
+
+  # Rewrite asset paths to relative paths
+  rewrite_paths: true
