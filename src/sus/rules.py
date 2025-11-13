@@ -1,4 +1,8 @@
-"""URL filtering and crawling rules."""
+"""URL filtering and crawling rules.
+
+URL normalization, validation, and rule-based filtering for controlling crawl scope. Provides
+URLNormalizer (URL consistency), RulesEngine (pattern matching), and LinkExtractor (HTML parsing).
+"""
 
 from typing import Literal
 from urllib.parse import urljoin, urlparse, urlunparse

@@ -1,12 +1,7 @@
-"""Main orchestration for SUS scraper pipeline.
+"""Scraper pipeline orchestration.
 
-This module coordinates the complete scraping workflow:
-1. Initialize all components (crawler, converter, outputs, assets)
-2. Crawl pages with progress tracking
-3. Convert HTML to Markdown with frontmatter
-4. Rewrite links to relative paths
-5. Download assets
-6. Display rich progress and statistics
+Orchestrates the complete scraping workflow, coordinating crawler, converter, outputs, and
+assets with Rich progress display. Main entry point: run_scraper().
 """
 
 import json

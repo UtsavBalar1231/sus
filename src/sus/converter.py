@@ -1,4 +1,8 @@
-"""HTML to Markdown conversion."""
+"""HTML to Markdown conversion.
+
+Converts HTML documentation to Markdown with YAML frontmatter. Provides SusMarkdownConverter
+(custom markdownify with alt text preservation) and ContentConverter (high-level orchestrator).
+"""
 
 import re
 from datetime import UTC, datetime

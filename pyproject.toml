@@ -60,3 +60,8 @@ python_files = ["test_*.py"]
 dev = [
     "lxml-stubs>=0.5.1",
 ]
+docs = [
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.24.0",
+    "pymdown-extensions>=10.7.0",
+]

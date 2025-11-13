@@ -1,4 +1,8 @@
-"""CLI interface using Typer."""
+"""Command line interface.
+
+Provides the CLI for SUS using Typer with Rich-formatted output. Main commands: scrape,
+validate, init, and list. All commands use Rich for styled terminal output.
+"""
 
 # ruff: noqa: B008
 

@@ -1,4 +1,8 @@
-"""Async web crawler with rate limiting and concurrency control."""
+"""Async web crawler.
+
+Async HTTP crawling with token bucket rate limiting, concurrency control, and robots.txt
+compliance. Provides Crawler (queue-based async crawler) and RateLimiter (burst-friendly throttling).
+"""
 
 import asyncio
 import logging

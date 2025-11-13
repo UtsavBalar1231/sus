@@ -1,4 +1,8 @@
-"""Configuration models using Pydantic."""
+"""Configuration system.
+
+YAML configuration files validated by Pydantic models. Provides type-safe configuration
+with validation, sensible defaults, and clear error messages. Main function: load_config().
+"""
 
 import fnmatch
 import re

@@ -1,10 +1,7 @@
-"""Output path mapping and link rewriting for SUS scraper.
+"""Output path mapping and link rewriting.
 
-This module handles:
-- URL to file path mapping (docs and assets)
-- Directory structure creation
-- Relative path calculation between files
-- Link rewriting in markdown content
+Transforms web URLs to local file paths and rewrites absolute links to relative paths for
+offline browsing. Provides OutputManager for all path operations and markdown link rewriting.
 """
 
 import re

@@ -1,4 +1,8 @@
-"""Utility functions."""
+"""Utility functions.
+
+Utility functions for SUS, primarily logging configuration with Rich formatting for styled
+console output. Provides setup_logging() for RichHandler configuration.
+"""
 
 import logging
 

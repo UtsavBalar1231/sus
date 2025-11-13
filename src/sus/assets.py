@@ -1,4 +1,9 @@
-"""Asset downloading and management."""
+"""Asset downloading and management.
+
+Handles concurrent downloading of web assets (images, CSS, JavaScript) with progress
+tracking and SHA-256 content deduplication. Provides AssetDownloader for async downloads
+with configurable concurrency limits.
+"""
 
 import asyncio
 from dataclasses import dataclass, field

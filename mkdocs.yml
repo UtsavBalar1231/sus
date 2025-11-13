@@ -1,0 +1,94 @@
+site_name: SUS Documentation
+site_description: Simple Universal Scraper - Auto-generated documentation
+site_url: https://github.com/UtsavBalar1231/sus
+repo_url: https://github.com/UtsavBalar1231/sus
+repo_name: sus
+edit_uri: edit/main/src/sus/
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_section_style: table
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            group_by_category: true
+            show_category_heading: true
+            show_if_no_docstring: false
+            inherited_members: false
+            filters: ["!^_"]
+            merge_init_into_class: true
+            separate_signature: true
+            show_signature_annotations: true
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+nav:
+  - Home: index.md
+  - User Guide:
+      - Configuration: api/config.md
+      - CLI Reference: api/cli.md
+      - Crawler: api/crawler.md
+  - API Reference:
+      - Overview: api/overview.md
+      - Config: api/config.md
+      - Crawler: api/crawler.md
+      - URL Rules: api/rules.md
+      - Converter: api/converter.md
+      - Output: api/outputs.md
+      - Assets: api/assets.md
+      - Scraper: api/scraper.md
+      - CLI: api/cli.md
+      - Utils: api/utils.md
+      - Exceptions: api/exceptions.md
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/UtsavBalar1231/sus
