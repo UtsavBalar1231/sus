@@ -1,7 +1,7 @@
 """Output path mapping and link rewriting.
 
-Transforms web URLs to local file paths and rewrites absolute links to relative paths for
-offline browsing. Provides OutputManager for all path operations and markdown link rewriting.
+Web URLs transformed to local file paths and absolute links rewritten to relative paths for
+offline browsing via OutputManager (handles path operations and markdown link rewriting).
 """
 
 import re
@@ -41,7 +41,6 @@ class OutputManager:
         self.config = config
         self.dry_run = dry_run
 
-        # Build output paths
         self.base_dir = Path(config.output.base_dir)
 
         # Site directory (if configured, otherwise use base_dir)
@@ -54,7 +53,6 @@ class OutputManager:
         self.docs_dir = self.site_dir / config.output.docs_dir
         self.assets_dir = self.site_dir / config.output.assets_dir
 
-        # Create directories (unless dry run)
         if not dry_run:
             self.docs_dir.mkdir(parents=True, exist_ok=True)
             self.assets_dir.mkdir(parents=True, exist_ok=True)
@@ -92,7 +90,6 @@ class OutputManager:
             parsed = urlparse(url)
             path = parsed.path.rstrip("/")
 
-            # Strip configured prefix if set
             strip_prefix = self.config.output.path_mapping.strip_prefix
             if strip_prefix:
                 # Normalize prefix (ensure it starts with / and doesn't end with /)
@@ -100,17 +97,14 @@ class OutputManager:
                     strip_prefix = "/" + strip_prefix
                 strip_prefix = strip_prefix.rstrip("/")
 
-                # Strip prefix from path
                 if path.startswith(strip_prefix):
                     path = path[len(strip_prefix) :]
 
             # Always remove leading slash to ensure relative paths (even if no prefix to strip)
             path = path.lstrip("/")
 
-            # Handle empty path (index page)
             if not path or path == "/":
                 output_path = self.docs_dir / self.config.output.path_mapping.index_file
-            # Handle directory URLs (ending in /)
             elif parsed.path.endswith("/"):
                 # Path like "guide/install/" → "guide/install/index.md"
                 if path:
@@ -121,12 +115,7 @@ class OutputManager:
                 # Regular path → add .md extension
                 output_path = self.docs_dir / f"{path}.md"
 
-            # Resolve to absolute path
             output_path = output_path.resolve()
-
-            # Create parent directories (unless dry run)
-            if not self.dry_run:
-                output_path.parent.mkdir(parents=True, exist_ok=True)
 
             return output_path
 
@@ -161,15 +150,9 @@ class OutputManager:
             parsed = urlparse(asset_url)
             path = parsed.path.lstrip("/")
 
-            # Build output path preserving directory structure
             output_path = self.assets_dir / path
 
-            # Resolve to absolute path
             output_path = output_path.resolve()
-
-            # Create parent directories (unless dry run)
-            if not self.dry_run:
-                output_path.parent.mkdir(parents=True, exist_ok=True)
 
             return output_path
 
@@ -211,13 +194,10 @@ class OutputManager:
             ValueError: If source_url is invalid
         """
         try:
-            # Get source file path
             source_file = self.get_doc_path(source_url)
 
-            # Rewrite markdown images: ![alt](url)
             markdown = self._rewrite_image_links(markdown, source_file)
 
-            # Rewrite markdown links: [text](url)
             markdown = self._rewrite_doc_links(markdown, source_file)
 
             return markdown
@@ -245,13 +225,9 @@ class OutputManager:
             if not link_url.startswith(("http://", "https://", "/")):
                 return match.group(0)
 
-            # Check if this is an internal doc link
             if self._is_internal_link(link_url):
                 try:
-                    # Get target file path
                     target_file = self.get_doc_path(link_url)
-
-                    # Calculate relative path
                     relative_path = self._calculate_relative_path(source_file, target_file)
 
                     return f"[{link_text}]({relative_path})"
@@ -288,22 +264,17 @@ class OutputManager:
             if img_url.startswith("../"):
                 return match.group(0)
 
-            # Check if this is an asset link
             if self._is_asset_link(img_url):
                 try:
                     # Handle relative paths like ../../img/schema.png
-                    # Extract from img/ onwards if present
                     if "img/" in img_url and not img_url.startswith(("http://", "https://")):
-                        # Extract from img/ onwards
                         img_url = img_url[img_url.find("img/") :]
                         # Build full URL for processing (use first allowed domain)
                         if self.config.site.allowed_domains:
                             img_url = f"https://{self.config.site.allowed_domains[0]}/{img_url}"
 
-                    # Get asset file path
                     asset_file = self.get_asset_path(img_url)
 
-                    # Calculate relative path from source to asset
                     relative_path = self._calculate_relative_path_to_assets(source_file, asset_file)
 
                     return f"![{alt_text}]({relative_path})"
@@ -349,7 +320,6 @@ class OutputManager:
             from_path = from_path.resolve()
             to_path = to_path.resolve()
 
-            # Get the directory containing the source file
             from_dir = from_path.parent
 
             # Calculate relative path from source directory to target file
@@ -394,21 +364,17 @@ class OutputManager:
             ValueError: If paths cannot be resolved or are invalid
         """
         try:
-            # Resolve to absolute paths
             from_path = from_path.resolve()
             asset_path = asset_path.resolve()
 
-            # Get source file directory relative to docs_dir
             from_rel = from_path.relative_to(self.docs_dir)
             from_dir = from_rel.parent
 
-            # Calculate depth (number of levels from source to docs_dir)
             depth = len(from_dir.parts) if from_dir != Path(".") else 0
 
             # Add one extra level to escape docs/ directory
             depth += 1
 
-            # Get asset path relative to assets_dir
             asset_rel = asset_path.relative_to(self.assets_dir)
 
             # Build relative path: ../../../assets/path/to/asset
@@ -446,7 +412,6 @@ class OutputManager:
                 return url.startswith(strip_prefix)
             return True
 
-        # Parse URL to check domain
         try:
             parsed = urlparse(url)
 
@@ -454,7 +419,6 @@ class OutputManager:
             if not parsed.netloc:
                 return True
 
-            # Check if domain is in allowed_domains
             domain = parsed.netloc.lower()
             # Remove www. prefix for comparison
             domain_no_www = domain.replace("www.", "")
@@ -524,12 +488,10 @@ class OutputManager:
             ".map",  # Source maps
         }
 
-        # Parse URL to get path
         try:
             parsed = urlparse(url)
             path = parsed.path.lower()
 
-            # Check if path ends with any asset extension
             return any(path.endswith(ext) for ext in asset_extensions)
 
         except (ValueError, AttributeError):

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "config_name": "test-config",
+  "config_hash": "abc123hash",
+  "created_at": "2025-01-01T00:00:00+00:00",
+  "last_updated": "2025-01-01T12:00:00+00:00",
+  "pages": {
+    "https://example.com/page1": {
+      "url": "https://example.com/page1",
+      "content_hash": "hash1",
+      # Missing required field: last_scraped
+      "status_code": 200,
+      "file_path": "/output/page1.md"
+    }
+  },
+  "queue": [],
+  "stats": {}

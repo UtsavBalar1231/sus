@@ -50,7 +50,7 @@ For most use cases, you'll interact with:
 
 ## Architecture Overview
 
-SUS implements a six-phase pipeline architecture:
+SUS implements a six-stage pipeline architecture:
 
 1. **Configuration System** (`config.py`) - Pydantic 2.9+ models with YAML validation
 2. **Crawler Engine** (`crawler.py`) - httpx async client with token bucket rate limiter

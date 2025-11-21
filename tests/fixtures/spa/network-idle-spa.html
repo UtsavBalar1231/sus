@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Idle SPA Test</title>
+</head>
+<body>
+    <div id="app">
+        <p>Initializing network requests...</p>
+    </div>
+
+    <script>
+        // For file:// URLs, render all content synchronously
+        // This simulates what would happen after all async operations complete
+        (function() {
+            const app = document.getElementById('app');
+
+            // Render all content at once (simulates completed async operations)
+            app.innerHTML = `
+                <h1>Network Idle Test SPA</h1>
+                <div id="users">
+                    <h2>Users</h2>
+                    <ul>
+                        <li><a href="/user/1">User 1</a></li>
+                        <li><a href="/user/2">User 2</a></li>
+                    </ul>
+                    <img src="/images/users-icon.png" alt="Users icon">
+                </div>
+                <div id="posts">
+                    <h2>Posts</h2>
+                    <ul>
+                        <li><a href="/post/1">First Post</a></li>
+                        <li><a href="/post/2">Second Post</a></li>
+                    </ul>
+                </div>
+                <div id="comments">
+                    <h2>Comments</h2>
+                    <ul>
+                        <li><a href="/comment/1">Great article!</a></li>
+                        <li><a href="/comment/2">Thanks for sharing</a></li>
+                    </ul>
+                </div>
+            `;
+
+            // Add final assets
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = '/css/network-idle.css';
+            document.head.appendChild(link);
+        })();
+    </script>
+</body>
+</html>

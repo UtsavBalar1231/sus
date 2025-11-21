@@ -74,7 +74,7 @@ Complete API documentation auto-generated from source code docstrings. See the *
 
 For contributors and developers:
 
-- **Architecture** - System design and implementation phases
+- **Architecture** - System design and implementation
 - **Contributing** - How to contribute to the project
 - **Testing** - Running tests and type checking
 

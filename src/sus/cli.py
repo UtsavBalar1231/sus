@@ -1,7 +1,7 @@
 """Command line interface.
 
-Provides the CLI for SUS using Typer with Rich-formatted output. Main commands: scrape,
-validate, init, and list. All commands use Rich for styled terminal output.
+CLI module using Typer with Rich-formatted output for scrape, validate, init, and list
+commands. All commands use Rich for styled terminal output with progress bars and tables.
 """
 
 # ruff: noqa: B008
@@ -19,13 +19,10 @@ from sus import __version__
 from sus.config import load_config
 from sus.exceptions import ConfigError, SusError
 
-# Install Rich traceback handler for beautiful error messages
 install_rich_traceback(show_locals=True)
 
-# Initialize Rich console for styled output
 console = Console()
 
-# Create Typer app
 app = typer.Typer(
     name="sus",
     help="SUS - Simple Universal Scraper for documentation sites",
@@ -95,18 +92,32 @@ def scrape(
         "--preview",
         help="Export dry-run JSON report",
     ),
+    resume: bool = typer.Option(
+        False,
+        "--resume",
+        help="Resume from checkpoint (requires checkpoint.enabled in config)",
+    ),
+    reset_checkpoint: bool = typer.Option(
+        False,
+        "--reset-checkpoint",
+        help="Delete checkpoint and start fresh",
+    ),
+    clear_cache: bool = typer.Option(
+        False,
+        "--clear-cache",
+        help="Clear HTTP cache before scraping",
+    ),
 ) -> None:
     """Scrape documentation site using config file.
 
     Loads configuration from YAML file and runs the scraper according
     to the specified rules. Use --dry-run to preview without writing files.
+    Use --resume to continue from a previous checkpoint.
     """
     try:
-        # Load and validate configuration
         console.print(f"[cyan]Loading configuration from:[/cyan] {config}")
         sus_config = load_config(config)
 
-        # Apply command-line overrides
         if output:
             sus_config.output.base_dir = output
             console.print(f"[yellow]Output directory overridden:[/yellow] {output}")
@@ -118,7 +129,6 @@ def scrape(
         if dry_run:
             console.print("[yellow]Running in dry-run mode (no files will be written)[/yellow]")
 
-        # Setup logging
         try:
             from sus.utils import setup_logging
 
@@ -133,20 +143,45 @@ def scrape(
                 format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             )
 
-        # Import and run scraper
+        if reset_checkpoint:
+            # Determine checkpoint path (match scraper.py logic)
+            output_dir = Path(sus_config.output.base_dir)
+            if sus_config.output.site_dir:
+                output_dir = output_dir / sus_config.output.site_dir
+
+            checkpoint_file = output_dir / sus_config.crawling.checkpoint.checkpoint_file
+
+            if checkpoint_file.exists():
+                checkpoint_file.unlink()
+                console.print(f"[yellow]Deleted checkpoint:[/yellow] {checkpoint_file}")
+            else:
+                console.print("[dim]No checkpoint found to delete - starting fresh[/dim]")
+
+        if clear_cache:
+            import shutil
+
+            output_dir = Path(sus_config.output.base_dir)
+            cache_dir = output_dir / sus_config.crawling.cache.cache_dir
+
+            if cache_dir.exists():
+                shutil.rmtree(cache_dir)
+                console.print(f"[yellow]Cleared cache directory:[/yellow] {cache_dir}")
+            else:
+                console.print("[dim]No cache directory found - will start fresh[/dim]")
+
         try:
             from sus.scraper import run_scraper
 
             console.print(f"[green]Starting scraper:[/green] {sus_config.name}")
             console.print(f"[cyan]Start URLs:[/cyan] {', '.join(sus_config.site.start_urls)}")
 
-            # Run the scraper (it's an async function)
             asyncio.run(
                 run_scraper(
                     config=sus_config,
                     dry_run=dry_run,
                     max_pages=max_pages,
                     preview=preview,
+                    resume=resume,
                 )
             )
 
@@ -201,13 +236,10 @@ def validate(
     try:
         console.print(f"[cyan]Validating configuration:[/cyan] {config_path}")
 
-        # Load and validate config
         sus_config = load_config(config_path)
 
-        # Display success message with config summary
-        console.print("[green]✓ Configuration is valid![/green]\n")
+        console.print("[green][OK] Configuration is valid![/green]\n")
 
-        # Show configuration summary
         table = Table(title="Configuration Summary")
         table.add_column("Field", style="cyan")
         table.add_column("Value", style="white")
@@ -219,17 +251,17 @@ def validate(
         table.add_row("Max Pages", str(sus_config.crawling.max_pages or "unlimited"))
         table.add_row("Depth Limit", str(sus_config.crawling.depth_limit or "unlimited"))
         table.add_row("Output Directory", sus_config.output.base_dir)
-        table.add_row("Download Assets", "✓" if sus_config.assets.download else "✗")
+        table.add_row("Download Assets", "Yes" if sus_config.assets.download else "No")
 
         console.print(table)
 
     except ConfigError as e:
-        console.print("[red]✗ Configuration validation failed:[/red]\n")
+        console.print("[red][FAIL] Configuration validation failed:[/red]\n")
         console.print(str(e))
         raise typer.Exit(code=1) from None
 
     except Exception as e:
-        console.print(f"[red]✗ Unexpected error:[/red] {e}")
+        console.print(f"[red][ERROR] Unexpected error:[/red] {e}")
         console.print_exception()
         raise typer.Exit(code=1) from None
 
@@ -252,11 +284,9 @@ def init(
     Prompts for basic configuration options and generates a minimal
     YAML config file. Use this as a starting point for your scraper.
     """
-    # Handle default output path
     if output_path is None:
         output_path = Path("config.yaml")
 
-    # Check if file already exists
     if output_path.exists() and not force:
         console.print(f"[red]Error:[/red] File already exists: {output_path}")
         console.print("[dim]Use --force to overwrite[/dim]")
@@ -265,12 +295,10 @@ def init(
     try:
         console.print("[cyan]Create a new SUS configuration[/cyan]\n")
 
-        # Prompt for required fields
         name = typer.prompt("Project name (e.g., 'my-docs')")
         description = typer.prompt("Description (optional)", default="")
         start_url = typer.prompt("Start URL (e.g., 'https://example.com/docs/')")
 
-        # Extract domain from start_url
         from urllib.parse import urlparse
 
         parsed = urlparse(start_url)
@@ -280,7 +308,6 @@ def init(
             console.print("[red]Error:[/red] Invalid URL format")
             raise typer.Exit(code=1)
 
-        # Generate minimal config
         config_template = {
             "name": name,
             "description": description,
@@ -304,13 +331,12 @@ def init(
             },
         }
 
-        # Write to file
         with output_path.open("w", encoding="utf-8") as f:
             f.write("# SUS Configuration\n")
             f.write(f"# Generated for: {name}\n\n")
             yaml.dump(config_template, f, default_flow_style=False, sort_keys=False)
 
-        console.print(f"\n[green]✓ Configuration created:[/green] {output_path}")
+        console.print(f"\n[green][OK] Configuration created:[/green] {output_path}")
         console.print("\n[dim]Next steps:[/dim]")
         console.print(f"  1. Edit {output_path} to customize settings")
         console.print(f"  2. Run: sus validate {output_path}")
@@ -334,7 +360,6 @@ def list_examples() -> None:
     start URLs. Use these as templates for your own configurations.
     """
     try:
-        # Determine examples directory relative to this file
         # Assuming project structure: src/sus/cli.py and examples/ at root
         current_file = Path(__file__).resolve()
         project_root = current_file.parent.parent.parent
@@ -345,20 +370,17 @@ def list_examples() -> None:
             console.print(f"[dim]Expected location:[/dim] {examples_dir}")
             raise typer.Exit(code=0)
 
-        # Find all YAML files in examples directory
         yaml_files = list(examples_dir.glob("*.yaml")) + list(examples_dir.glob("*.yml"))
 
         if not yaml_files:
             console.print("[yellow]No example configurations found[/yellow]")
             raise typer.Exit(code=0)
 
-        # Create table
         table = Table(title="Example Configurations")
         table.add_column("Name", style="cyan", no_wrap=True)
         table.add_column("Description", style="white")
         table.add_column("Start URLs", style="green")
 
-        # Load and display each config
         for yaml_file in sorted(yaml_files):
             try:
                 with yaml_file.open("r", encoding="utf-8") as f:
@@ -379,7 +401,6 @@ def list_examples() -> None:
                 table.add_row(name, description, urls_str)
 
             except Exception as e:
-                # If a config fails to load, show it with error
                 table.add_row(
                     yaml_file.stem,
                     f"[red]Error loading: {e}[/red]",

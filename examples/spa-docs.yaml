@@ -1,0 +1,140 @@
+# SPA Documentation Scraper Configuration
+# Example configuration for scraping Single Page Applications (SPAs)
+# that require JavaScript rendering to display content.
+#
+# This demonstrates JavaScript rendering with Playwright for sites that:
+# - Use React, Vue, Angular, or similar frameworks
+# - Load content dynamically via JavaScript
+# - Require network requests to complete before content appears
+#
+# Requirements:
+#   uv sync --group js && uv run playwright install chromium
+
+name: vue-spa-docs
+
+description: >
+  Example configuration for scraping Vue.js documentation (JavaScript SPA).
+  Uses Playwright to render pages in a headless browser before extracting content.
+  Vue docs are built as a SPA and require JavaScript rendering to display content.
+
+site:
+  start_urls:
+    - https://vuejs.org/
+  allowed_domains:
+    - vuejs.org
+
+crawling:
+  # URL filtering patterns
+  include_patterns:
+    - pattern: "/guide/"
+      type: prefix
+    - pattern: "/api/"
+      type: prefix
+    - pattern: "/tutorial/"
+      type: prefix
+    - pattern: "/examples/"
+      type: prefix
+
+  exclude_patterns:
+    - pattern: "*.pdf"
+      type: glob
+    - pattern: "/sponsor"
+      type: prefix
+    - pattern: "/about/"
+      type: prefix
+
+  # Concurrency limits (lower for JS rendering to avoid overwhelming the browser)
+  global_concurrent_requests: 5  # Lower than default (25) for browser rendering
+  per_domain_concurrent_requests: 2  # Lower than default (5) for stability
+
+  # Rate limiting (longer delays for JS rendering)
+  delay_between_requests: 1.0  # Slower than default (0.5s) to reduce load
+  rate_limiter_burst_size: 3   # Smaller burst to avoid browser overload
+
+  # Page limits
+  max_pages: 100
+  depth_limit: 3
+
+  # Retry configuration
+  max_retries: 3
+  retry_backoff: 2.0
+  retry_jitter: 0.3
+
+  # Resource limits
+  max_page_size_mb: 10.0
+  max_asset_size_mb: 50.0
+  max_redirects: 10
+
+  # JavaScript rendering configuration
+  javascript:
+    # Enable JavaScript rendering with Playwright
+    enabled: true
+
+    # Wait strategy (choose based on site behavior):
+    # - "domcontentloaded": Fastest, waits for DOM ready (good for simple SPAs)
+    # - "load": Waits for all resources including images (good for most cases)
+    # - "networkidle": Waits for network to be idle (best for heavy async loading)
+    wait_for: networkidle
+
+    # Maximum time to wait for page load (milliseconds)
+    wait_timeout_ms: 30000  # 30 seconds
+
+    # Custom user agent (optional)
+    # user_agent_override: "MyBot/1.0 (https://example.com/bot)"
+
+    # Browser viewport size (affects responsive layouts)
+    viewport_width: 1920
+    viewport_height: 1080
+
+    # Enable/disable JavaScript execution (usually true, false for debugging)
+    javascript_enabled: true
+
+    # Context pool size for reusing browser contexts
+    # Higher = more concurrent pages but more memory
+    # Lower = less memory but slower processing
+    context_pool_size: 5
+
+  # Robots.txt compliance
+  respect_robots_txt: true
+
+  # Link extraction
+  link_selectors:
+    - a[href]
+
+  # Memory monitoring
+  memory_check_interval: 1
+
+output:
+  base_dir: output
+  site_dir: vue-spa-docs  # Defaults to config name if not specified
+  docs_dir: docs
+  assets_dir: assets
+
+  path_mapping:
+    mode: auto
+    strip_prefix: null  # No prefix to strip for Vue docs
+    index_file: index.md
+
+  markdown:
+    add_frontmatter: true
+    frontmatter_fields:
+      - title
+      - url
+      - scraped_at
+
+assets:
+  download: true
+  types:
+    - image
+    - css
+    - javascript
+  rewrite_paths: true
+  max_concurrent_asset_downloads: 10
+
+# Notes:
+# 1. JavaScript rendering is 3-5x slower than HTTP-only crawling
+# 2. Memory usage is higher due to browser instances
+# 3. Context pooling significantly improves performance
+# 4. Use wait_for="domcontentloaded" for faster scraping if site loads quickly
+# 5. Increase context_pool_size for more concurrency (up to 20)
+# 6. Lower global_concurrent_requests to reduce memory pressure

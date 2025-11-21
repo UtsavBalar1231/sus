@@ -1,4 +1,4 @@
-"""Integration tests for SUS scraper (Phases 1-4)."""
+"""Integration tests for SUS scraper."""
 
 import asyncio
 from pathlib import Path
@@ -23,33 +23,37 @@ from sus.crawler import RateLimiter
 from sus.outputs import OutputManager
 from sus.rules import LinkExtractor, RulesEngine, URLNormalizer
 
-# ============================================================================
-# Phase 1: Project Structure
-# ============================================================================
 
-
-def test_project_structure():
+def test_project_structure() -> None:
     """Verify src/sus/ directory and modules exist."""
     src_dir = Path("src/sus")
     assert src_dir.exists()
 
     modules = [
-        "__init__.py", "__main__.py", "cli.py", "config.py",
-        "crawler.py", "rules.py", "converter.py", "outputs.py",
-        "assets.py", "utils.py", "exceptions.py"
+        "__init__.py",
+        "__main__.py",
+        "cli.py",
+        "config.py",
+        "crawler.py",
+        "rules.py",
+        "converter.py",
+        "outputs.py",
+        "assets.py",
+        "utils.py",
+        "exceptions.py",
     ]
     for module in modules:
         assert (src_dir / module).exists(), f"{module} missing"
 
 
-def test_example_configs_exist():
+def test_example_configs_exist() -> None:
     """Verify all example config files exist."""
     examples = ["aptly.yaml", "simple-docs.yaml", "advanced-docs.yaml"]
     for config in examples:
         assert (Path("examples") / config).exists(), f"{config} missing"
 
 
-def test_pyproject_configuration():
+def test_pyproject_configuration() -> None:
     """Verify pyproject.toml is configured correctly."""
     pyproject = Path("pyproject.toml")
     assert pyproject.exists()
@@ -59,17 +63,15 @@ def test_pyproject_configuration():
     assert "pydantic" in content
 
 
-# ============================================================================
-# Phase 2: Configuration System
-# ============================================================================
-
-
-@pytest.mark.parametrize("config_path,expected_name", [
-    ("examples/aptly.yaml", "aptly-docs"),
-    ("examples/simple-docs.yaml", "my-docs"),
-    ("examples/advanced-docs.yaml", "advanced-docs"),
-])
-def test_config_loading(config_path, expected_name):
+@pytest.mark.parametrize(
+    "config_path,expected_name",
+    [
+        ("examples/aptly.yaml", "aptly-docs"),
+        ("examples/simple-docs.yaml", "flask-docs"),
+        ("examples/advanced-docs.yaml", "django-docs"),
+    ],
+)
+def test_load_yaml_configs(config_path: str, expected_name: str) -> None:
     """Verify YAML configs load and validate."""
     config = load_config(Path(config_path))
     assert config.name == expected_name
@@ -77,7 +79,7 @@ def test_config_loading(config_path, expected_name):
     assert len(config.site.allowed_domains) > 0
 
 
-def test_config_validation():
+def test_config_validation() -> None:
     """Verify config fields validate correctly."""
     config = load_config(Path("examples/aptly.yaml"))
     assert config.crawling.delay_between_requests == 0.5
@@ -86,52 +88,56 @@ def test_config_validation():
     assert config.crawling.retry_backoff == 2.0
 
 
-@pytest.mark.parametrize("pattern,path,expected", [
-    (PathPattern(pattern=r"^/doc/", type="regex"), "/doc/overview", True),
-    (PathPattern(pattern=r"^/doc/", type="regex"), "/blog/post", False),
-    (PathPattern(pattern="*.html", type="glob"), "index.html", True),
-    (PathPattern(pattern="*.html", type="glob"), "index.md", False),
-    (PathPattern(pattern="/docs/", type="prefix"), "/docs/guide", True),
-    (PathPattern(pattern="/docs/", type="prefix"), "/api/guide", False),
-])
-def test_path_pattern_matching(pattern, path, expected):
+@pytest.mark.parametrize(
+    "pattern,path,expected",
+    [
+        (PathPattern(pattern=r"^/doc/", type="regex"), "/doc/overview", True),
+        (PathPattern(pattern=r"^/doc/", type="regex"), "/blog/post", False),
+        (PathPattern(pattern="*.html", type="glob"), "index.html", True),
+        (PathPattern(pattern="*.html", type="glob"), "index.md", False),
+        (PathPattern(pattern="/docs/", type="prefix"), "/docs/guide", True),
+        (PathPattern(pattern="/docs/", type="prefix"), "/api/guide", False),
+    ],
+)
+def test_path_pattern_matching(pattern: PathPattern, path: str, expected: bool) -> None:
     """Verify PathPattern regex/glob/prefix matching."""
     assert pattern.matches(path) == expected
 
 
-# ============================================================================
-# Phase 3: Core Crawler Engine
-# ============================================================================
-
-
-@pytest.mark.parametrize("url,expected", [
-    ("HTTP://Example.COM:80/Path", "http://example.com/Path"),
-    ("https://example.com/path#section", "https://example.com/path"),
-])
-def test_url_normalization(url, expected):
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        ("HTTP://Example.COM:80/Path", "http://example.com/Path"),
+        ("https://example.com/path#section", "https://example.com/path"),
+    ],
+)
+def test_url_normalization(url: str, expected: str) -> None:
     """Verify URL normalization (lowercase, strip ports, remove fragments)."""
     assert URLNormalizer.normalize_url(url) == expected
 
 
-@pytest.mark.parametrize("url,is_safe", [
-    ("http://example.com", True),
-    ("https://example.com", True),
-    ("mailto:user@example.com", False),
-    ("javascript:alert(1)", False),
-])
-def test_dangerous_scheme_filtering(url, is_safe):
+@pytest.mark.parametrize(
+    "url,is_safe",
+    [
+        ("http://example.com", True),
+        ("https://example.com", True),
+        ("mailto:user@example.com", False),
+        ("javascript:alert(1)", False),
+    ],
+)
+def test_dangerous_url_filtering(url: str, is_safe: bool) -> None:
     """Verify dangerous URL schemes are blocked."""
     assert URLNormalizer.filter_dangerous_schemes(url) == is_safe
 
 
-def test_query_parameter_handling():
+def test_query_parameter_handling() -> None:
     """Verify query parameter strip/preserve strategies."""
     url = "http://example.com/path?foo=bar"
     assert "?" not in URLNormalizer.handle_query_parameters(url, "strip")
     assert "?" in URLNormalizer.handle_query_parameters(url, "preserve")
 
 
-def test_rules_engine():
+def test_rules_engine() -> None:
     """Verify RulesEngine domain/depth/pattern filtering."""
     config = SusConfig(
         name="test",
@@ -161,7 +167,7 @@ def test_rules_engine():
     assert not engine.should_follow("http://example.com/blog/post", None)
 
 
-def test_link_extraction():
+def test_link_extraction() -> None:
     """Verify LinkExtractor parses HTML and filters dangerous schemes."""
     extractor = LinkExtractor(["a[href]"])
     html = """
@@ -181,7 +187,7 @@ def test_link_extraction():
 
 
 @pytest.mark.asyncio
-async def test_rate_limiter():
+async def test_rate_limiter() -> None:
     """Verify token bucket rate limiter handles bursts correctly."""
     limiter = RateLimiter(rate=10.0, burst=3)
     start = asyncio.get_event_loop().time()
@@ -198,12 +204,7 @@ async def test_rate_limiter():
     assert total_time >= 0.1
 
 
-# ============================================================================
-# Phase 4: Content Conversion
-# ============================================================================
-
-
-def test_html_to_markdown_conversion():
+def test_html_to_markdown_conversion() -> None:
     """Verify HTML converts to Markdown with frontmatter."""
     config = MarkdownConfig(add_frontmatter=True, frontmatter_fields=["title", "url", "scraped_at"])
     converter = ContentConverter(config)
@@ -227,7 +228,7 @@ def test_html_to_markdown_conversion():
     assert "bold" in markdown or "**bold**" in markdown
 
 
-def test_output_manager():
+def test_output_manager() -> None:
     """Verify OutputManager maps URLs to file paths correctly."""
     with TemporaryDirectory() as tmpdir:
         config = SusConfig(
@@ -269,7 +270,7 @@ def test_output_manager():
         assert "img" in str(asset_path)
 
 
-def test_link_rewriting():
+def test_link_rewriting() -> None:
     """Verify link rewriting converts absolute URLs to relative paths."""
     with TemporaryDirectory() as tmpdir:
         config = SusConfig(
@@ -285,7 +286,9 @@ def test_link_rewriting():
         )
         manager = OutputManager(config, dry_run=False)
 
-        markdown = "[Guide](https://example.com/docs/guide) ![Logo](https://example.com/img/logo.png)"
+        markdown = (
+            "[Guide](https://example.com/docs/guide) ![Logo](https://example.com/img/logo.png)"
+        )
         rewritten = manager.rewrite_links(markdown, "https://example.com/docs/")
 
         # Links should be rewritten (exact format may vary)
@@ -293,7 +296,7 @@ def test_link_rewriting():
         assert "assets/img/logo.png" in rewritten or "../assets/img/logo.png" in rewritten
 
 
-def test_output_manager_with_null_strip_prefix():
+def test_output_manager_with_null_strip_prefix() -> None:
     """Verify OutputManager handles strip_prefix=None correctly.
 
     Regression test for bug where null prefix caused ValueError during link rewriting
@@ -318,8 +321,9 @@ def test_output_manager_with_null_strip_prefix():
         assert "guide" in str(doc_path)
 
         # Critical: Path must be relative to docs_dir (not an absolute filesystem path)
-        assert doc_path.is_relative_to(manager.docs_dir), \
+        assert doc_path.is_relative_to(manager.docs_dir), (
             f"Path {doc_path} should be relative to {manager.docs_dir}"
+        )
 
         # Test with non-directory URL
         doc_path2 = manager.get_doc_path("https://example.com/docs/page")
@@ -339,7 +343,7 @@ def test_output_manager_with_null_strip_prefix():
 
 
 @pytest.mark.asyncio
-async def test_asset_downloader():
+async def test_asset_downloader() -> None:
     """Verify AssetDownloader respects download config."""
     with TemporaryDirectory() as tmpdir:
         config = SusConfig(
@@ -349,20 +353,15 @@ async def test_asset_downloader():
             assets=AssetConfig(download=False, types=["image"], rewrite_paths=True),
         )
         manager = OutputManager(config, dry_run=False)
-        downloader = AssetDownloader(config.assets, manager)
+        downloader = AssetDownloader(config, manager)
 
         # Test with download disabled
         stats = await downloader.download_all([])
         assert stats.downloaded == 0
 
 
-# ============================================================================
-# Full Integration Pipeline
-# ============================================================================
-
-
 @pytest.mark.asyncio
-async def test_full_integration_pipeline():
+async def test_full_integration_pipeline() -> None:
     """Verify all components integrate correctly end-to-end."""
     with TemporaryDirectory() as tmpdir:
         config = SusConfig(

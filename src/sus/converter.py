@@ -1,22 +1,26 @@
 """HTML to Markdown conversion.
 
-Converts HTML documentation to Markdown with YAML frontmatter. Provides SusMarkdownConverter
-(custom markdownify with alt text preservation) and ContentConverter (high-level orchestrator).
+HTML documentation converted to Markdown with YAML frontmatter using SusMarkdownConverter
+(markdownify extension with alt text preservation) and ContentConverter (orchestrator).
 """
 
+import logging
 import re
 from datetime import UTC, datetime
 from typing import Any, cast
 
 import yaml
+from lxml import etree as lxml_etree
 from lxml import html as lxml_html
 from lxml.html import HtmlElement
 from markdownify import MarkdownConverter
 
 from sus.config import MarkdownConfig
 
+logger = logging.getLogger(__name__)
 
-class SusMarkdownConverter(MarkdownConverter):  # type: ignore[misc]
+
+class SusMarkdownConverter(MarkdownConverter):
     """Custom Markdown converter with better handling for docs.
 
     Overrides specific conversion methods for improved output quality.
@@ -40,11 +44,9 @@ class SusMarkdownConverter(MarkdownConverter):  # type: ignore[misc]
             <img src="logo.png" alt="Company Logo"> → ![Company Logo](logo.png)
             <img src="icon.png"> → ![](icon.png)
         """
-        # Extract attributes
         src = el.get("src", "")
         alt = el.get("alt", "")
 
-        # Build markdown image syntax
         # Always include alt text brackets even if empty
         return f"![{alt}]({src})"
 
@@ -73,26 +75,20 @@ class SusMarkdownConverter(MarkdownConverter):  # type: ignore[misc]
             → plain text
             → ```
         """
-        # Check if pre contains a code element with language class
         # markdownify uses BeautifulSoup, so we need to use BeautifulSoup's API
         language = ""
-
-        # Try to find code element - el might be BeautifulSoup Tag
         code_el = None
         if hasattr(el, "find"):
             code_el = el.find("code")
 
         if code_el is not None:
-            # Extract language from class attribute
             # Look for patterns like "language-python", "lang-python", or just "python"
             classes = code_el.get("class", "")
 
-            # Handle both string and list formats for class attribute
             if isinstance(classes, list):
                 classes = " ".join(classes)
 
             if classes:
-                # Try to extract language from class names
                 for class_name in classes.split():
                     # Match "language-X" or "lang-X"
                     if class_name.startswith("language-"):
@@ -128,13 +124,11 @@ class SusMarkdownConverter(MarkdownConverter):  # type: ignore[misc]
                         language = class_name
                         break
 
-            # Get text content from code element
             if hasattr(code_el, "get_text"):
                 text = code_el.get_text()
             elif hasattr(code_el, "text_content"):
                 text = code_el.text_content()
 
-        # Return fenced code block
         return f"\n```{language}\n{text}\n```\n"
 
 
@@ -157,7 +151,6 @@ class ContentConverter:
         """
         self.config = config
 
-        # Configure markdownify converter with our custom class
         # strip: Remove non-content elements that shouldn't be in markdown
         self.converter = SusMarkdownConverter(
             heading_style="atx",  # Use # style headers
@@ -199,17 +192,16 @@ class ContentConverter:
         4. Add frontmatter if configured
         5. Return final markdown
         """
-        # Step 1: Extract title if not provided
         if title is None:
             title = self._extract_title(html)
 
-        # Step 2: Convert HTML to Markdown
+        if self.config.content_filtering.enabled:
+            html = self._filter_content(html)
+
         markdown = self.converter.convert(html)
 
-        # Step 3: Clean markdown
         markdown = self._clean_markdown(markdown)
 
-        # Step 4: Add frontmatter if configured
         if self.config.add_frontmatter:
             markdown = self._add_frontmatter(markdown, url, title, metadata)
 
@@ -232,10 +224,8 @@ class ContentConverter:
             'Untitled'
         """
         try:
-            # Parse HTML
             doc = lxml_html.fromstring(html)
 
-            # Find title element
             title_elements = cast("list[Any]", doc.xpath("//title"))
             if title_elements and isinstance(title_elements[0], HtmlElement):
                 title_text = cast("str", title_elements[0].text_content().strip())
@@ -267,17 +257,13 @@ class ContentConverter:
             >>> converter._clean_markdown("Line with spaces   \\n")
             'Line with spaces\\n'
         """
-        # Remove trailing whitespace from each line
         lines = [line.rstrip() for line in markdown.splitlines()]
 
-        # Join lines back and handle excessive blank lines
         markdown = "\n".join(lines)
 
-        # Replace 3+ consecutive newlines with exactly 2 newlines
         # This preserves paragraph breaks but removes excessive spacing
         markdown = re.sub(r"\n{3,}", "\n\n", markdown)
 
-        # Ensure file ends with single newline
         markdown = markdown.rstrip("\n") + "\n"
 
         return markdown
@@ -319,10 +305,8 @@ class ContentConverter:
 
         [markdown content]
         """
-        # Build frontmatter dictionary with configured fields
         frontmatter_dict: dict[str, Any] = {}
 
-        # Add standard fields if they're in configured fields
         if "title" in self.config.frontmatter_fields:
             frontmatter_dict["title"] = title
 
@@ -333,7 +317,6 @@ class ContentConverter:
             # Use UTC time in ISO 8601 format
             frontmatter_dict["scraped_at"] = datetime.now(UTC).isoformat()
 
-        # Merge with additional metadata if provided
         if metadata:
             for key, value in metadata.items():
                 if key in self.config.frontmatter_fields:
@@ -342,7 +325,6 @@ class ContentConverter:
         # Sort fields alphabetically for deterministic output
         frontmatter_dict = dict(sorted(frontmatter_dict.items()))
 
-        # Serialize to YAML
         # default_flow_style=False ensures block style (not inline)
         # allow_unicode=True preserves unicode characters
         # sort_keys=False because we already sorted above
@@ -353,5 +335,85 @@ class ContentConverter:
             sort_keys=False,
         )
 
-        # Build final markdown with frontmatter
         return f"---\n{yaml_content}---\n\n{markdown}"
+
+    def _filter_content(self, html: str) -> str:
+        """Filter HTML content using CSS selectors.
+
+        Applies content filtering based on configuration:
+        - If keep_selectors is specified, extract only those elements
+        - If remove_selectors is specified, remove those elements
+        - keep_selectors takes precedence over remove_selectors
+
+        Args:
+            html: HTML content to filter
+
+        Returns:
+            Filtered HTML content
+
+        Examples:
+            >>> config = MarkdownConfig(content_filtering=ContentFilteringConfig(
+            ...     enabled=True,
+            ...     remove_selectors=["nav", "footer"]
+            ... ))
+            >>> converter = ContentConverter(config)
+            >>> html = (
+            ...     "<html><body><nav>Nav</nav><main>Content</main>"
+            ...     "<footer>Footer</footer></body></html>"
+            ... )
+            >>> filtered = converter._filter_content(html)
+            >>> "Nav" not in filtered
+            True
+            >>> "Content" in filtered
+            True
+            >>> "Footer" not in filtered
+            True
+        """
+        try:
+            doc = lxml_html.fromstring(html)
+
+            # Strategy 1: Keep only specified elements (whitelist approach)
+            if self.config.content_filtering.keep_selectors:
+                kept_elements = []
+                seen_ids = set()
+                for selector in self.config.content_filtering.keep_selectors:
+                    elements = doc.cssselect(selector)
+                    for elem in elements:
+                        elem_id = id(elem)
+                        if elem_id not in seen_ids:
+                            seen_ids.add(elem_id)
+                            kept_elements.append(elem)
+
+                if not kept_elements:
+                    # No elements matched - return empty doc
+                    return "<html><body></body></html>"
+
+                # Preserve document order by using tree iteration
+                kept_elements_set = set(kept_elements)
+                kept_elements = [elem for elem in doc.iter() if elem in kept_elements_set]
+
+                new_doc = lxml_html.Element("html")
+                body = lxml_etree.SubElement(new_doc, "body")
+                for elem in kept_elements:
+                    body.append(elem)
+
+                result = lxml_html.tostring(new_doc, encoding="unicode")
+                return cast("str", result)
+
+            # Strategy 2: Remove specified elements (blacklist approach)
+            if self.config.content_filtering.remove_selectors:
+                for selector in self.config.content_filtering.remove_selectors:
+                    elements = doc.cssselect(selector)
+                    for elem in elements:
+                        parent = elem.getparent()
+                        if parent is not None:
+                            parent.remove(elem)
+
+                result = lxml_html.tostring(doc, encoding="unicode")
+                return cast("str", result)
+
+            return html
+
+        except Exception as e:
+            logger.warning(f"Content filtering failed: {e}. Returning original HTML.")
+            return html

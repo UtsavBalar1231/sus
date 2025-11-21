@@ -1,0 +1,148 @@
+# Content Filtering Example
+# Demonstrates CSS selector-based filtering to extract only relevant content
+# Target: Python Requests library docs (ReadTheDocs site with navigation/sidebar)
+
+# Project metadata
+name: requests-docs-filtered
+description: Extract only documentation content from Python Requests library
+
+# Site configuration
+site:
+  start_urls:
+    - https://docs.python-requests.org/en/latest/
+  allowed_domains:
+    - docs.python-requests.org
+
+# Crawling configuration
+crawling:
+  # Only scrape latest English version
+  include_patterns:
+    - pattern: "/en/latest/"
+      type: prefix
+
+  # Skip old versions and search pages
+  exclude_patterns:
+    - pattern: "^/en/v[0-9]"
+      type: regex
+    - pattern: "/search/"
+      type: prefix
+    - pattern: "/_static/"
+      type: prefix
+
+  max_pages: 100
+  delay_between_requests: 0.5
+  global_concurrent_requests: 25
+
+# Output configuration
+output:
+  base_dir: output/requests-docs-filtered
+  path_mapping:
+    mode: auto
+    strip_prefix: /en/latest
+
+# Markdown configuration with content filtering
+markdown:
+  add_frontmatter: true
+  frontmatter_fields:
+    - title
+    - url
+    - scraped_at
+
+  # Content filtering configuration
+  content_filtering:
+    enabled: true
+
+    # Strategy 1: Keep only specified elements (WHITELIST - recommended)
+    # Extracts only these elements, ignoring everything else
+    # This is the cleanest approach for documentation scraping
+    #
+    # ReadTheDocs sites use div[role="main"] for main content
+    keep_selectors:
+      - div[role="main"]       # Main content area (ReadTheDocs standard)
+      - article                # Article content if present
+      # Or use these alternatives for other ReadTheDocs sites:
+      # - div.document          # Sphinx document div
+      # - div.body              # Sphinx body div
+
+    # Strategy 2: Remove specified elements (BLACKLIST)
+    # Removes these elements from the full document
+    # Note: keep_selectors takes precedence over remove_selectors
+    # Uncomment to use blacklist approach instead:
+    # remove_selectors:
+    #   # Navigation
+    #   - nav
+    #   - header
+    #   - aside
+    #   - div.sidebar
+    #   - div.navigation
+    #
+    #   # Footer and metadata
+    #   - footer
+    #   - div.footer
+    #   - div.page-footer
+    #
+    #   # Advertisements and tracking
+    #   - div.ad
+    #   - div.advertisement
+    #   - div.banner
+    #   - div[id*="ad"]
+    #   - div[class*="ad"]
+    #
+    #   # Comments and social
+    #   - section#comments
+    #   - div.comments
+    #   - div.social-share
+    #
+    #   # Page metadata
+    #   - div.breadcrumbs
+    #   - div.page-meta
+    #   - p.last-updated
+
+# CSS Selector Tips:
+#
+# Element selectors:
+#   - nav, footer, aside
+#   - article, section, main
+#
+# Class selectors:
+#   - .documentation, .content, .sidebar
+#   - div.content, section.api-docs
+#
+# ID selectors:
+#   - #main-content, #documentation
+#   - div#content, article#api-reference
+#
+# Attribute selectors:
+#   - div[role="main"]
+#   - section[data-type="documentation"]
+#
+# Descendant selectors:
+#   - article p      (all p inside article)
+#   - nav a          (all links in navigation)
+#   - aside div.ad   (ads inside sidebar)
+#
+# Multiple classes:
+#   - div.content.documentation
+#   - section.api.reference
+#
+# Attribute wildcards:
+#   - div[class*="ad"]  (class contains "ad")
+#   - div[id^="banner"] (id starts with "banner")
+#   - div[class$="nav"] (class ends with "nav")
+
+# Real-world examples:
+#
+# ReadTheDocs-style sites:
+#   keep_selectors: [div[role="main"], article]
+#
+# WordPress documentation:
+#   keep_selectors: [article.post, div.entry-content]
+#
+# Material for MkDocs:
+#   keep_selectors: [article.md-content]
+#
+# Docusaurus:
+#   keep_selectors: [article, main.docMainContainer]
+#
+# GitBook:
+#   keep_selectors: [div.page-inner]

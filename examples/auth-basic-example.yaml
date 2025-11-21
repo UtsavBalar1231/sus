@@ -1,0 +1,53 @@
+# Basic Authentication Example
+# Demonstrates HTTP Basic Auth for protected resources
+# Target: httpbin.org/basic-auth (public test endpoint)
+
+# Project metadata
+name: httpbin-basic-auth-demo
+description: Test Basic Authentication using httpbin.org public endpoint
+
+# Site configuration
+site:
+  start_urls:
+    - https://httpbin.org/basic-auth/testuser/testpass
+  allowed_domains:
+    - httpbin.org
+
+# Crawling configuration
+crawling:
+  max_pages: 10  # httpbin is a test service, limit requests
+  delay_between_requests: 1.0  # Be respectful to public service
+
+  # Authentication configuration
+  authentication:
+    enabled: true
+    auth_type: basic  # HTTP Basic Authentication
+
+    # Public test credentials (httpbin.org provides these)
+    # Endpoint: /basic-auth/{user}/{passwd}
+    # Use credentials matching the URL path
+    username: testuser
+    password: testpass
+
+# Output configuration
+output:
+  base_dir: output/httpbin-basic-demo
+  path_mapping:
+    mode: auto
+
+# Markdown configuration
+markdown:
+  add_frontmatter: true
+  frontmatter_fields:
+    - title
+    - url
+    - scraped_at
+
+# Notes:
+# - httpbin.org is a public HTTP testing service
+# - /basic-auth/{user}/{passwd} returns 200 if credentials match
+# - Change username/password in URL and config to test different credentials
+# - For production use, store credentials securely (environment variables, secrets manager)
+#
+# Example usage:
+#   sus scrape --config examples/auth-basic-example.yaml --dry-run

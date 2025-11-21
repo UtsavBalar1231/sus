@@ -1,0 +1,76 @@
+# Cookie-Based Authentication Example
+# Demonstrates session cookie authentication for protected content
+#
+# NOTE: Cookie auth requires user-specific session cookies from an actual login.
+# This example provides instructions since there's no public cookie-auth test API.
+# Use this template for your own sites that require cookie-based authentication.
+
+# Project metadata
+name: cookie-auth-template
+description: Template for scraping sites using session cookie authentication
+
+# Site configuration
+# REPLACE with your actual site:
+site:
+  start_urls:
+    - https://your-site.com/docs/
+  allowed_domains:
+    - your-site.com
+
+# Crawling configuration
+crawling:
+  max_pages: 500
+  delay_between_requests: 0.5
+
+  # Authentication configuration
+  authentication:
+    enabled: true
+    auth_type: cookie  # Cookie-based authentication
+
+    # HOW TO OBTAIN SESSION COOKIES:
+    #
+    # 1. Log into your site via browser
+    # 2. Open browser dev tools (F12)
+    # 3. Go to Application/Storage > Cookies (Chrome/Edge)
+    #    or Storage > Cookies (Firefox)
+    # 4. Copy the cookie name(s) and value(s)
+    # 5. Replace the example values below
+    #
+    # Common cookie names:
+    # - sessionid, session_id (Django/general)
+    # - csrftoken, csrf_token (Django CSRF)
+    # - PHPSESSID (PHP sessions)
+    # - connect.sid (Express.js)
+    # - _session_id (Rails)
+    cookies:
+      sessionid: "YOUR_SESSION_ID_HERE"
+      csrftoken: "YOUR_CSRF_TOKEN_HERE"  # If site uses CSRF protection
+
+# Output configuration
+output:
+  base_dir: output/cookie-auth-docs
+  path_mapping:
+    mode: auto
+
+# Markdown configuration
+markdown:
+  add_frontmatter: true
+  frontmatter_fields:
+    - title
+    - url
+    - scraped_at
+
+# SECURITY NOTES:
+# - Session cookies are sensitive credentials - treat like passwords
+# - Never commit cookie values to version control
+# - Use environment variables or secrets manager for production
+# - Cookies may expire - obtain fresh ones if scraping fails
+# - Some sites invalidate cookies on logout
+#
+# Example with environment variables:
+#   1. Store cookie in env: export SESSION_ID="your_value"
+#   2. Reference in script before running SUS
+#   3. Update this file programmatically or use templating
+#
+# Example usage:
+#   sus scrape --config examples/auth-cookie-example.yaml --dry-run

@@ -1,15 +1,18 @@
 """URL filtering and crawling rules.
 
-URL normalization, validation, and rule-based filtering for controlling crawl scope. Provides
-URLNormalizer (URL consistency), RulesEngine (pattern matching), and LinkExtractor (HTML parsing).
+URL normalization, validation, and rule-based filtering for controlling crawl scope via
+URLNormalizer (consistency), RulesEngine (pattern matching), and LinkExtractor (HTML parsing).
 """
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, cast
 from urllib.parse import urljoin, urlparse, urlunparse
 
 from lxml import html as lxml_html
 
 from sus.config import SusConfig
+
+if TYPE_CHECKING:
+    from sus.types import LxmlElement
 
 
 class URLNormalizer:
@@ -77,14 +80,11 @@ class URLNormalizer:
             raise ValueError("URL cannot be empty")
 
         try:
-            # Parse URL
             parsed = urlparse(url.strip())
 
-            # Normalize scheme and netloc (hostname)
             scheme = parsed.scheme.lower()
             netloc = parsed.hostname.lower() if parsed.hostname else ""
 
-            # Add port if it's not default
             if parsed.port:
                 default_port = URLNormalizer.DEFAULT_PORTS.get(scheme)
                 if parsed.port != default_port:
@@ -140,7 +140,6 @@ class URLNormalizer:
             scheme = parsed.scheme.lower()
             return scheme in URLNormalizer.SAFE_SCHEMES
         except Exception:
-            # If URL parsing fails, consider it unsafe
             return False
 
     @staticmethod
@@ -170,7 +169,6 @@ class URLNormalizer:
         if strategy == "preserve":
             return url
 
-        # Strip query parameters
         parsed = urlparse(url)
         return urlunparse(
             (
@@ -234,11 +232,9 @@ class RulesEngine:
             >>> engine.should_follow("http://example.com/docs/guide", None)
             True
         """
-        # 1. Check allowed domain
         if not self._is_allowed_domain(url):
             return False
 
-        # 2. Check depth limit
         depth = self._get_depth(url, parent_url)
         if (
             self.config.crawling.depth_limit is not None
@@ -246,16 +242,13 @@ class RulesEngine:
         ):
             return False
 
-        # Extract path for pattern matching
         parsed = urlparse(url)
         path = parsed.path
 
-        # 3. Check exclude patterns (blacklist) - if matches any, reject
         for pattern in self.config.crawling.exclude_patterns:
             if pattern.matches(path):
                 return False
 
-        # 4. Check include patterns (whitelist)
         # If there are no include patterns, accept all (that passed exclude check)
         if not self.config.crawling.include_patterns:
             return True
@@ -311,7 +304,6 @@ class RulesEngine:
             return False
 
         except Exception:
-            # If URL parsing fails, reject
             return False
 
     def _get_depth(self, url: str, parent_url: str | None) -> int:
@@ -331,19 +323,15 @@ class RulesEngine:
             >>> engine._get_depth("http://example.com/page1", "http://example.com/")
             1
         """
-        # If already tracked, return stored depth
         if url in self.depth_tracker:
             return self.depth_tracker[url]
 
-        # If no parent, this is a start URL (depth 0)
         if parent_url is None:
             self.depth_tracker[url] = 0
             return 0
 
-        # Get parent depth (default to 0 if not tracked)
         parent_depth = self.depth_tracker.get(parent_url, 0)
 
-        # Current depth is parent depth + 1
         depth = parent_depth + 1
         self.depth_tracker[url] = depth
 
@@ -389,14 +377,11 @@ class LinkExtractor:
             - element[attr] → //element[@attr]
             - element → //element
         """
-        # Handle attribute selectors like "a[href]"
         if "[" in selector:
-            # Split into element and attribute parts
             element, rest = selector.split("[", 1)
             attr = rest.rstrip("]")
             return f"//{element}[@{attr}]"
         else:
-            # Simple element selector
             return f"//{selector}"
 
     def extract_links(self, html: str, base_url: str) -> set[str]:
@@ -437,17 +422,13 @@ class LinkExtractor:
             return set()
 
         try:
-            # Parse HTML
             tree = lxml_html.fromstring(html)
 
-            # Extract links using all selectors
             raw_links: set[str] = set()
 
             for selector in self.selectors:
-                # Convert CSS selector to XPath
                 xpath = self._css_to_xpath(selector)
 
-                # Use XPath to find elements
                 xpath_result = tree.xpath(xpath)
 
                 # XPath can return various types, ensure we only process elements
@@ -455,40 +436,33 @@ class LinkExtractor:
                     continue
 
                 for item in xpath_result:
-                    # Only process if it's an element (has get method)
                     if not hasattr(item, "get"):
                         continue
 
-                    # Extract href attribute
-                    href = item.get("href")  # type: ignore[union-attr]
+                    element = cast("LxmlElement", item)
+                    href = element.get("href")
 
                     if href and href.strip():
                         raw_links.add(href.strip())
 
-            # Process and normalize links
             normalized_links: set[str] = set()
 
             for link in raw_links:
                 try:
-                    # Convert relative to absolute
                     absolute_url = urljoin(base_url, link)
 
-                    # Filter dangerous schemes
                     if not URLNormalizer.filter_dangerous_schemes(absolute_url):
                         continue
 
                     # Normalize URL (this also removes fragments)
                     normalized_url = URLNormalizer.normalize_url(absolute_url)
 
-                    # Add to result set
                     normalized_links.add(normalized_url)
 
                 except (ValueError, Exception):
-                    # Skip malformed URLs
                     continue
 
             return normalized_links
 
         except Exception:
-            # If HTML parsing fails, return empty set
             return set()

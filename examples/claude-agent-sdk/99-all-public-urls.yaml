@@ -1,0 +1,111 @@
+# All Public URLs Combined (76 total)
+name: claude-agent-sdk-all-public
+
+site:
+  start_urls:
+    # Anthropic Official (16)
+    - https://docs.claude.com/en/api/agent-sdk/
+    - https://docs.claude.com/en/docs/agent-sdk/
+    - https://docs.claude.com/en/docs/claude-code/
+    - https://docs.claude.com/en/release-notes/
+    - https://platform.claude.com/docs/en/agent-sdk/
+    - https://www.anthropic.com/engineering/building-agents-with-the-claude-agent-sdk
+    - https://www.anthropic.com/engineering/building-effective-agents
+    - https://www.anthropic.com/engineering/claude-code-best-practices
+    - https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills
+    - https://www.anthropic.com/engineering/writing-tools-for-agents
+    - https://www.anthropic.com/news/claude-sonnet-4-5
+    - https://www.anthropic.com/news/enabling-claude-code-to-work-more-autonomously
+    - https://www.anthropic.com/news/how-anthropic-teams-use-claude-code
+    - https://www.anthropic.com/news/model-context-protocol
+    - https://www.anthropic.com/news/skills
+    # Blogs (54)
+    - https://skywork.ai/blog/ai-agent/claude-skills-security-threat-model-permissions-best-practices-2025/
+    - https://skywork.ai/blog/claude-agent-sdk-best-practices-ai-agents-2025/
+    - https://skywork.ai/blog/claude-agent-sdk-use-cases-2025/
+    - https://skywork.ai/blog/claude-code-sdk-api-reference-explained/
+    - https://skywork.ai/blog/claude-code-sdk-for-python-developers/
+    - https://skywork.ai/blog/claude-code-sdk-pricing-and-api-limits-explained/
+    - https://skywork.ai/blog/claude-code-sdk-vs-langchain-which-is-better-for-developers/
+    - https://skywork.ai/blog/how-to-use-claude-agent-sdk-step-by-step-ai-agent-tutorial/
+    - https://aankitroy.com/blog/claude-agent-sdk-building-agents-that-work
+    - https://apidog.com/blog/claude-api-cost/
+    - https://artechway.com/blog/claude-agent-sdk-the-complete-developer-guide-to-building-powerful-autonomous-ai-agents-in-2025
+    - https://blog.getbind.co/2025/10/03/how-to-create-agents-with-claude-agents-sdk/
+    - https://blog.jetbrains.com/ai/2025/09/introducing-claude-agent-in-jetbrains-ides/
+    - https://collabnix.com/claude-api-integration-guide-2025-complete-developer-tutorial-with-code-examples/
+    - https://creatoreconomy.so/p/claude-code-tutorial-build-a-youtube-research-agent-in-15-min
+    - https://depot.dev/blog/now-available-claude-code-sessions-in-depot
+    - https://dev.to/bredmond1019/multi-agent-orchestration-running-10-claude-instances-in-parallel-part-3-29da
+    - https://promptlayer.com/blog/building-effective-agents-with-claude-agent-sdk
+    - https://techbytes.app/posts/claude-engineering-november-2025-mcp-security-agents/
+    - https://uraiguide.com/building-ai-agents-with-claude-agent-sdk/
+    - https://aws.amazon.com/blogs/machine-learning/supercharge-your-development-with-claude-code-and-amazon-bedrock-prompt-caching/
+    - https://clickhouse.com/blog/how-to-build-ai-agents-mcp-12-frameworks
+    - https://www.datacamp.com/tutorial/claude-agent-sdk-tutorial
+    - https://www.datacamp.com/tutorial/how-to-use-claude-agent-sdk
+    - https://www.backslash.security/blog/claude-code-security-best-practices
+    - https://www.bind.ai/blog/deploying-claude-agent-sdk-in-production
+    - https://www.blle.co/blog/claude-agent-sdk-api-implementation
+    - https://www.digitalapplied.com/blog/claude-sonnet-4-5-code-2-agent-sdk-guide
+    - https://www.eesel.ai/blog/custom-coding-agents-claude-code-sdk
+    - https://www.eesel.ai/blog/python-claude-code-sdk
+    # Docs (10)
+    - https://awslabs.github.io/agent-squad/agents/built-in/anthropic-agent/
+    - https://clickhouse.com/docs/use-cases/AI/MCP/ai-agent-libraries/claude-agent-sdk
+    - https://docs.kanaries.net/topics/AICoding/build-claude-code-with-claude-agent-sdk
+    - https://docs.langchain.com/langsmith/trace-claude-agent-sdk
+    - https://docs.rs/claude-agent-sdk
+    - https://jimmysong.io/en/ai/claude-agent-sdk-python/
+    - https://leehanchung.github.io/blogs/2025/10/26/claude-skills-deep-dive/
+    - https://www.promptfoo.dev/docs/providers/claude-agent-sdk/
+    # NPM (1)
+    - https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk
+
+  allowed_domains:
+    - docs.claude.com
+    - platform.claude.com
+    - anthropic.com
+    - skywork.ai
+    - aankitroy.com
+    - apidog.com
+    - artechway.com
+    - blog.getbind.co
+    - blog.jetbrains.com
+    - collabnix.com
+    - creatoreconomy.so
+    - depot.dev
+    - dev.to
+    - promptlayer.com
+    - techbytes.app
+    - uraiguide.com
+    - aws.amazon.com
+    - clickhouse.com
+    - datacamp.com
+    - backslash.security
+    - bind.ai
+    - blle.co
+    - digitalapplied.com
+    - eesel.ai
+    - awslabs.github.io
+    - docs.kanaries.net
+    - docs.langchain.com
+    - docs.rs
+    - jimmysong.io
+    - leehanchung.github.io
+    - promptfoo.dev
+    - npmjs.com
+
+crawling:
+  depth_limit: 0
+  delay_between_requests: 0.5
+  global_concurrent_requests: 15
+
+  # JavaScript rendering for SPAs (docs.claude.com, platform.claude.com)
+  javascript:
+    enabled: true
+    wait_for: networkidle      # Wait for all network requests to complete
+    wait_timeout_ms: 30000
+    context_pool_size: 5
+    viewport_width: 1920
+    viewport_height: 1080

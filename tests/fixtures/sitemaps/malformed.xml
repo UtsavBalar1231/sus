@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://example.com/page1</loc>
+  </url>
+  <url>
+    <!-- Missing <loc> element -->
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://example.com/page2</loc>
+    <priority>invalid-priority</priority>
+  </url>
+  <url>
+    <loc>https://example.com/page3</loc>
+    <changefreq>invalid-freq</changefreq>
+  </url>
+</urlset>

@@ -1,0 +1,153 @@
+# Configuration for Official Anthropic Documentation
+# Claude Agent SDK docs, engineering blog, and platform documentation
+#
+# Total URLs: 16
+# Expected scrape time: 10-15 minutes (with JS rendering)
+# Output: ~20-30 MB
+
+name: anthropic-official-docs
+
+# Site configuration
+site:
+  # Official Anthropic documentation and blog URLs
+  start_urls:
+    # Official Documentation (docs.claude.com)
+    - https://docs.claude.com/en/api/agent-sdk/
+    - https://docs.claude.com/en/docs/agent-sdk/
+    # - https://docs.claude.com/en/docs/claude-code/
+    # - https://docs.claude.com/en/release-notes/
+
+    # Platform Documentation (platform.claude.com)
+    - https://platform.claude.com/docs/en/agent-sdk/
+
+    # Engineering Blog (www.anthropic.com/engineering)
+    - https://www.anthropic.com/engineering/building-agents-with-the-claude-agent-sdk
+    - https://www.anthropic.com/engineering/building-effective-agents
+    - https://www.anthropic.com/engineering/claude-code-best-practices
+    - https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills
+    - https://www.anthropic.com/engineering/writing-tools-for-agents
+
+    # News & Announcements (www.anthropic.com/news)
+    - https://www.anthropic.com/news/claude-sonnet-4-5
+    - https://www.anthropic.com/news/enabling-claude-code-to-work-more-autonomously
+    - https://www.anthropic.com/news/how-anthropic-teams-use-claude-code
+    - https://www.anthropic.com/news/model-context-protocol
+    - https://www.anthropic.com/news/skills
+
+  # Restrict crawling to Anthropic domains
+  allowed_domains:
+    - docs.claude.com
+    - platform.claude.com
+    - anthropic.com
+
+# URL filtering patterns
+# Exclude patterns have higher precedence than include patterns
+include_patterns:
+  - pattern: "/en/api/agent-sdk/"
+    type: prefix
+  - pattern: "/en/docs/agent-sdk/"
+    type: prefix
+  - pattern: "/en/docs/claude-code/"
+    type: prefix
+  - pattern: "/en/release-notes/"
+    type: prefix
+  - pattern: "/engineering/"
+    type: prefix
+  - pattern: "/news/"
+    type: prefix
+
+exclude_patterns:
+  - pattern: "*.pdf"
+    type: glob
+  - pattern: "*/changelog/*"
+    type: glob
+  - pattern: "/api/v1/*"
+    type: prefix
+
+# Crawling configuration
+crawling:
+  concurrency:
+    max_concurrent: 10
+    per_domain: 3  # Conservative for Anthropic domains
+
+  rate_limiting:
+    delay_between_requests: 0.5  # 2 requests/second
+    burst: 5  # Allow small bursts
+
+  # JavaScript rendering for React/Next.js SPAs
+  javascript:
+    enabled: true
+    wait_for: networkidle  # Wait for network idle (best for SPAs)
+    wait_timeout_ms: 30000  # 30 seconds timeout
+    context_pool_size: 5  # Reuse browser contexts for performance
+    viewport_width: 1920
+    viewport_height: 1080
+
+  # Sitemap support for comprehensive crawling
+  sitemap:
+    enabled: true
+    auto_discover: true  # Check robots.txt and /sitemap.xml
+    respect_priority: true  # Crawl high-priority pages first
+    max_urls: 1000  # Limit sitemap URLs
+    strict: false  # Skip invalid sitemap entries gracefully
+
+  # Checkpoint/resume for crash recovery
+  checkpoint:
+    enabled: true
+    checkpoint_file: .anthropic_checkpoint.json
+    checkpoint_interval_pages: 10
+    detect_changes: true
+    force_redownload_after_days: 7
+
+  # Robots.txt compliance
+  robots_txt:
+    respect: true
+
+  # Crawl depth
+  depth_limit: null  # Follow linkslevels deep
+
+# HTTP configuration
+http:
+  timeout_seconds: 30
+  max_redirects: 10
+
+  headers:
+    User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    Accept-Language: "en-US,en;q=0.9"
+    Accept-Encoding: "gzip, deflate, br"
+
+# Output configuration
+output:
+  directory: output/anthropic-official
+
+  path_mapping:
+    mode: auto
+    strip_prefix: ""
+    index_file: index.md
+
+# Markdown conversion settings
+markdown:
+  heading_style: atx
+  code_language: python
+
+  frontmatter_fields:
+    - title
+    - url
+    - scraped_at
+
+# Asset download configuration
+assets:
+  enabled: true
+  types:
+    - images
+    - css
+    - js
+  max_size_mb: 50
+  concurrent_downloads: 10
+
+# Content filtering (optional)
+content:
+  min_content_length: 100  # Skip pages with <100 chars
+  remove_nav: false  # Keep navigation for context
+  remove_footer: false  # Keep footer for links

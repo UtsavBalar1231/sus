@@ -1,3 +1,21 @@
+# Concurrency configuration
+# These defaults balance speed and politeness for most documentation sites.
+# Adjust based on your target site's capacity and your bandwidth:
+#
+# For small sites (<100 pages):
+#   global_concurrent_requests: 10-15
+#   per_domain_concurrent_requests: 2-3
+#
+# For medium sites (100-1000 pages) - DEFAULT:
+#   global_concurrent_requests: 25
+#   per_domain_concurrent_requests: 5
+#
+# For large sites (1000+ pages) with robust infrastructure:
+#   global_concurrent_requests: 50-100
+#   per_domain_concurrent_requests: 10-20
+#
+# Note: delay_between_requests provides additional rate limiting via token bucket
+
 # Aptly Documentation Scraper Configuration
 # This config replicates the original aptly-docs-scraper behavior
 

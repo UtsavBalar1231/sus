@@ -1,0 +1,35 @@
+# Example configuration using code highlighting plugin
+# This config demonstrates syntax highlighting with Pygments
+
+name: "python-docs"
+description: "Python documentation with syntax highlighted code blocks"
+
+site:
+  start_urls:
+    - "https://docs.python.org/3/tutorial/"
+  allowed_domains:
+    - "docs.python.org"
+
+crawling:
+  include_patterns:
+    - pattern: "/3/tutorial/"
+      type: "prefix"
+  max_pages: 50
+  delay_between_requests: 0.5
+
+output:
+  base_dir: "output"
+  docs_dir: "docs"
+  assets_dir: "assets"
+
+# Plugin configuration
+plugins:
+  enabled: true
+  plugins:
+    - "sus.plugins.code_highlight"
+
+  plugin_settings:
+    "sus.plugins.code_highlight":
+      theme: "monokai"
+      add_line_numbers: false
+      inline_styles: true

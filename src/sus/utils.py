@@ -1,7 +1,7 @@
 """Utility functions.
 
-Utility functions for SUS, primarily logging configuration with Rich formatting for styled
-console output. Provides setup_logging() for RichHandler configuration.
+Logging configuration with Rich formatting for styled console output via setup_logging()
+which configures RichHandler with appropriate verbosity and formatter settings.
 """
 
 import logging
@@ -18,7 +18,6 @@ def setup_logging(verbose: bool = False) -> None:
     """
     level = logging.DEBUG if verbose else logging.INFO
 
-    # Configure RichHandler
     handler = RichHandler(
         rich_tracebacks=True,
         markup=True,
@@ -26,7 +25,6 @@ def setup_logging(verbose: bool = False) -> None:
         show_path=verbose,  # Only show file path in verbose mode
     )
 
-    # Setup format
     formatter = logging.Formatter(
         "%(message)s",
         datefmt="[%X]",

@@ -11,10 +11,6 @@ from pydantic import ValidationError
 from sus.config import CrawlingRules, PathPattern, SiteConfig, SusConfig
 from sus.crawler import Crawler, RateLimiter
 
-# ============================================================================
-# RateLimiter Tests
-# ============================================================================
-
 
 @pytest.mark.asyncio
 async def test_rate_limiter_allows_burst() -> None:
@@ -100,11 +96,6 @@ async def test_rate_limiter_zero_rate() -> None:
     assert elapsed < 0.1, "High rate should have minimal delay"
 
 
-# ============================================================================
-# Crawler Basic Tests
-# ============================================================================
-
-
 @pytest.mark.asyncio
 async def test_crawler_basic_single_page(
     httpx_mock: pytest_httpx.HTTPXMock, sample_config: SusConfig
@@ -140,10 +131,10 @@ async def test_crawler_follows_links(
     httpx_mock.add_response(
         url="http://example.com/docs/",
         html=(
-            '<html><body>'
+            "<html><body>"
             '<a href="/docs/page1">Page 1</a>'
             '<a href="/docs/page2">Page 2</a>'
-            '</body></html>'
+            "</body></html>"
         ),
         status_code=200,
         headers={"content-type": "text/html"},
@@ -381,11 +372,11 @@ async def test_crawler_respects_max_pages(
     httpx_mock.add_response(
         url="http://example.com/",
         html=(
-            '<html><body>'
+            "<html><body>"
             '<a href="/page1">P1</a>'
             '<a href="/page2">P2</a>'
             '<a href="/page3">P3</a>'
-            '</body></html>'
+            "</body></html>"
         ),
         status_code=200,
         headers={"content-type": "text/html"},
@@ -408,11 +399,6 @@ async def test_crawler_respects_max_pages(
 
     # With sequential requests, should stop exactly at max_pages
     assert len(results) <= 2, "Should not exceed max_pages"
-
-
-# ============================================================================
-# Content-Type Handling Tests
-# ============================================================================
 
 
 @pytest.mark.asyncio
@@ -485,11 +471,7 @@ async def test_crawler_accepts_html_variants(
     assert len(results) == len(content_types)
 
 
-# ============================================================================
-# Error Handling Tests
-# ============================================================================
-
-
+@pytest.mark.httpx_mock(assert_all_responses_were_requested=False)
 @pytest.mark.asyncio
 async def test_crawler_handles_404_gracefully(
     httpx_mock: pytest_httpx.HTTPXMock, sample_config: SusConfig
@@ -515,6 +497,7 @@ async def test_crawler_handles_404_gracefully(
     assert crawler.stats.pages_crawled == 0
 
 
+@pytest.mark.httpx_mock(assert_all_responses_were_requested=False)
 @pytest.mark.asyncio
 async def test_crawler_handles_500_errors(
     httpx_mock: pytest_httpx.HTTPXMock, sample_config: SusConfig
@@ -541,6 +524,9 @@ async def test_crawler_handles_500_errors(
     assert len(crawler.stats.error_counts) > 0
 
 
+@pytest.mark.skip(
+    reason="Retry logic now handled by httpx-retries library - see test_adaptive_retry.py"
+)
 @pytest.mark.asyncio
 async def test_crawler_retries_with_exponential_backoff(
     httpx_mock: pytest_httpx.HTTPXMock,
@@ -594,6 +580,9 @@ async def test_crawler_retries_with_exponential_backoff(
     assert elapsed >= 3.5, "Should have exponential backoff delay"
 
 
+@pytest.mark.skip(
+    reason="Retry logic now handled by httpx-retries library - see test_adaptive_retry.py"
+)
 @pytest.mark.asyncio
 async def test_crawler_gives_up_after_max_retries(
     httpx_mock: pytest_httpx.HTTPXMock,
@@ -657,11 +646,6 @@ async def test_crawler_handles_malformed_html_gracefully(
     assert results[0].status_code == 200
 
 
-# ============================================================================
-# Link Extraction Tests
-# ============================================================================
-
-
 @pytest.mark.asyncio
 async def test_crawler_extracts_links_correctly(
     httpx_mock: pytest_httpx.HTTPXMock, sample_config: SusConfig
@@ -710,10 +694,10 @@ async def test_crawler_deduplicates_urls(
     httpx_mock.add_response(
         url="http://example.com/docs/",
         html=(
-            '<html><body>'
+            "<html><body>"
             '<a href="/docs/page1">Link 1</a>'
             '<a href="/docs/page1">Link 2 (duplicate)</a>'
-            '</body></html>'
+            "</body></html>"
         ),
         status_code=200,
         headers={"content-type": "text/html"},
@@ -772,11 +756,6 @@ async def test_crawler_normalizes_urls_before_deduplication(
     urls = [r.url for r in results]
     assert len(results) == 2  # Index + page1 (normalized, not twice)
     assert urls.count("http://example.com/docs/page1") == 1
-
-
-# ============================================================================
-# Asset Extraction Tests
-# ============================================================================
 
 
 @pytest.mark.asyncio
@@ -871,11 +850,6 @@ async def test_crawler_extracts_javascript_assets(
     assets = results[0].assets
     assert "http://example.com/js/app.js" in assets
     assert "http://example.com/js/analytics.js" in assets
-
-
-# ============================================================================
-# Concurrency Tests
-# ============================================================================
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,85 @@
+# OAuth 2.0 Authentication Example
+# Demonstrates OAuth2 Client Credentials flow for API-to-API authentication
+# Target: GoRest API (free fake REST API with OAuth2 support)
+
+# Project metadata
+name: gorest-oauth2-demo
+description: Test OAuth2 authentication using GoRest.co.in public API
+
+# Site configuration
+site:
+  start_urls:
+    - https://gorest.co.in/public/v2/users
+    - https://gorest.co.in/public/v2/posts
+  allowed_domains:
+    - gorest.co.in
+
+# Crawling configuration
+crawling:
+  max_pages: 20  # GoRest is a test service, limit requests
+  delay_between_requests: 1.0  # Be respectful to public service
+
+  # Authentication configuration
+  #
+  # NOTE: GoRest uses Bearer tokens, not full OAuth2 Client Credentials flow
+  # For actual OAuth2, you would use the oauth2 auth_type with:
+  # - client_id, client_secret, token_url, scope
+  #
+  # Since GoRest uses simple Bearer tokens, we'll use header auth instead:
+  authentication:
+    enabled: true
+    auth_type: header  # Using header auth for GoRest Bearer token
+
+    headers:
+      # Get your free token at: https://gorest.co.in/
+      # Click "Access Token" in header, sign in with Google/GitHub
+      Authorization: "Bearer YOUR_GOREST_TOKEN_HERE"
+
+  # For TRUE OAuth2 Client Credentials flow example:
+  # authentication:
+  #   enabled: true
+  #   auth_type: oauth2
+  #   client_id: "your-oauth-client-id"
+  #   client_secret: "your-oauth-client-secret"
+  #   token_url: "https://your-auth-server.com/oauth/token"
+  #   scope: "read write"  # Optional, space-separated scopes
+
+# Output configuration
+output:
+  base_dir: output/gorest-oauth2-demo
+  path_mapping:
+    mode: auto
+    strip_prefix: /public/v2
+
+# Markdown configuration
+markdown:
+  add_frontmatter: true
+  frontmatter_fields:
+    - title
+    - url
+    - scraped_at
+
+# HOW TO GET GOREST TOKEN:
+# 1. Visit: https://gorest.co.in/
+# 2. Click "Access Token" in the top navigation
+# 3. Sign in with Google or GitHub
+# 4. Copy your personal access token
+# 5. Replace "YOUR_GOREST_TOKEN_HERE" above
+#
+# Notes on OAuth2:
+# - GoRest uses simple Bearer tokens, not full OAuth2 flow
+# - For TRUE OAuth2 Client Credentials flow:
+#   * Use auth_type: oauth2
+#   * Provide client_id, client_secret, token_url
+#   * SUS will automatically fetch and refresh access tokens
+#   * Tokens are cached and refreshed before expiry (60s buffer)
+# - OAuth2 is for API-to-API authentication (machine-to-machine)
+# - For user authentication, use cookie auth after manual login
+#
+# OAuth2 flow support:
+# - ✓ Client Credentials (machine-to-machine)
+# - ✗ Authorization Code (user-based, requires browser)
+# - ✗ Password Grant (deprecated)
+#
+# Example usage:
+#   sus scrape --config examples/auth-oauth2-example.yaml --dry-run

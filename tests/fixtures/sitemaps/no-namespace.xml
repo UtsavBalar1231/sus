@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset>
+  <url>
+    <loc>https://example.com/no-ns-1</loc>
+  </url>
+  <url>
+    <loc>https://example.com/no-ns-2</loc>
+    <priority>0.7</priority>
+  </url>
+</urlset>

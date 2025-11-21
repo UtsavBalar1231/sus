@@ -1,0 +1,75 @@
+# Example configuration using all built-in plugins
+# Demonstrates code highlighting, link validation, and image optimization
+# Target: Flask documentation (has code blocks, images, and comprehensive links)
+
+name: "flask-full-plugins"
+description: "Flask docs scraping with all plugin features enabled"
+
+site:
+  start_urls:
+    - "https://flask.palletsprojects.com/en/stable/"
+  allowed_domains:
+    - "flask.palletsprojects.com"
+
+crawling:
+  include_patterns:
+    - pattern: "/en/stable/"
+      type: "prefix"
+  exclude_patterns:
+    - pattern: "*.pdf"
+      type: "glob"
+    - pattern: "/en/latest/"
+      type: "prefix"
+  max_pages: 100
+  delay_between_requests: 0.5
+
+output:
+  base_dir: "output"
+  docs_dir: "docs"
+  assets_dir: "assets"
+
+assets:
+  download: true
+  types:
+    - "image"
+    - "css"
+    - "javascript"
+
+# Plugin configuration with all built-in plugins
+plugins:
+  enabled: true
+  plugins:
+    - "sus.plugins.code_highlight"
+    - "sus.plugins.link_validator"
+    - "sus.plugins.image_optimizer"
+
+  plugin_settings:
+    # Syntax highlighting with Pygments
+    "sus.plugins.code_highlight":
+      theme: "monokai"
+      add_line_numbers: false
+      inline_styles: true
+
+    # Link validation (internal and external)
+    "sus.plugins.link_validator":
+      timeout: 5.0
+      max_concurrent: 10
+      cache_results: true
+      check_internal: true
+      check_external: true
+      ignore_patterns:
+        - "https://cdn\\..*"
+        - ".*\\.pdf$"
+      base_dir: "output/flask-full-plugins/docs"
+
+    # Image optimization with Pillow
+    "sus.plugins.image_optimizer":
+      max_width: 1920
+      max_height: 1080
+      quality: 85
+      formats:
+        - "jpg"
+        - "jpeg"
+        - "png"
+        - "webp"
+      preserve_aspect_ratio: true

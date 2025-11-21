@@ -1,63 +1,62 @@
 # Advanced Documentation Scraper Configuration
 # Comprehensive example showcasing all available features
+# Target: Django web framework documentation (large, complex, multi-section site)
 
 # Project metadata
-name: advanced-docs
-description: Advanced multi-site documentation scraper with all features enabled
+name: django-docs
+description: Django framework documentation scraper with advanced features
 
 # Site configuration
 site:
-  # Multiple entry points for crawling
+  # Multiple entry points for crawling different documentation sections
   start_urls:
-    - https://docs.example.com/
-    - https://docs.example.com/api/
-    - https://docs.example.com/guides/
+    - https://docs.djangoproject.com/en/stable/
+    - https://docs.djangoproject.com/en/stable/ref/
+    - https://docs.djangoproject.com/en/stable/topics/
 
-  # Restrict to specific domains and subdomains
+  # Restrict to Django documentation domain
   allowed_domains:
-    - docs.example.com
-    - api.example.com
-    - cdn.example.com
+    - docs.djangoproject.com
 
 # Advanced crawling rules
 crawling:
   # Complex include patterns (whitelist)
   include_patterns:
-    # Regex: only paths starting with /docs/ or /api/
-    - pattern: "^/(docs|api)/"
+    # Only scrape stable version (English)
+    - pattern: "^/en/stable/"
       type: regex
-
-    # Glob: match versioned docs (e.g., /v1.0/, /v2.0/)
-    - pattern: "/v*/??*"
-      type: glob
-
-    # Prefix: simple prefix matching for guides section
-    - pattern: "/guides/"
-      type: prefix
 
   # Exclude patterns (blacklist - takes precedence over includes)
   exclude_patterns:
-    # Skip internal/admin pages
-    - pattern: "^/(admin|internal)/"
+    # Skip other language versions
+    - pattern: "^/(es|fr|ja|ko|pt-br|zh-hans)/"
       type: regex
+
+    # Skip old version docs
+    - pattern: "^/en/[0-9]+\\.[0-9]/"
+      type: regex
+
+    # Skip search and genindex pages (Sphinx artifacts)
+    - pattern: "/search/"
+      type: prefix
+    - pattern: "/genindex/"
+      type: prefix
+    - pattern: "/_sources/"
+      type: prefix
+    - pattern: "/_static/"
+      type: prefix
 
     # Skip binary downloads
     - pattern: "*.{pdf,zip,tar.gz,exe,dmg}"
       type: glob
 
-    # Skip specific paths
-    - pattern: "/changelog/"
-      type: prefix
-    - pattern: "/search"
-      type: prefix
-
   # Crawl depth limit: how many links deep from start_urls
   # null = unlimited, 0 = only start_urls, 1 = start_urls + direct links, etc.
-  depth_limit: 5
+  depth_limit: null
 
-  # Maximum pages to scrape (useful for testing or sampling)
-  # null = unlimited
-  max_pages: 1000
+  # Maximum pages to scrape (Django docs has ~500 pages in stable/en)
+  # null = unlimited, set lower for testing
+  max_pages: 200
 
   # Rate limiting: delay between requests to same domain (seconds)
   delay_between_requests: 1.0
@@ -92,7 +91,7 @@ output:
 
   # Site-specific subdirectory (enables multi-site scraping)
   # Creates output/<site_dir>/ structure
-  site_dir: advanced-example
+  site_dir: django-docs
 
   # Directory structure within site_dir
   docs_dir: docs      # Markdown files go here
@@ -104,8 +103,8 @@ output:
     mode: auto
 
     # Strip this prefix from URLs before mapping
-    # Example: https://docs.example.com/docs/guide/ -> /guide/ -> guide.md
-    strip_prefix: /docs
+    # Example: https://docs.djangoproject.com/en/stable/topics/db/ -> /topics/db/ -> topics/db.md
+    strip_prefix: /en/stable
 
     # Filename for directory URLs (e.g., /guide/ -> guide/index.md)
     index_file: index.md
@@ -142,4 +141,10 @@ assets:
 # Example usage:
 # sus scrape --config examples/advanced-docs.yaml
 # sus scrape --config examples/advanced-docs.yaml --dry-run
-# sus scrape --config examples/advanced-docs.yaml --max-pages 10 --verbose
+# sus scrape --config examples/advanced-docs.yaml --max-pages 50 --verbose
+#
+# Notes:
+# - Django docs uses Sphinx static site generator
+# - Has comprehensive sitemap at /sitemap.xml
+# - Includes tutorials, API reference, how-to guides, and topic guides
+# - ~500 pages in stable English version

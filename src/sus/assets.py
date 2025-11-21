@@ -1,19 +1,21 @@
 """Asset downloading and management.
 
-Handles concurrent downloading of web assets (images, CSS, JavaScript) with progress
-tracking and SHA-256 content deduplication. Provides AssetDownloader for async downloads
-with configurable concurrency limits.
+Concurrent downloading of web assets (images, CSS, JavaScript) with progress tracking,
+SHA-256 content deduplication, and configurable concurrency limits via AssetDownloader.
 """
 
 import asyncio
+import errno
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
+import aiofiles
 import httpx
 
-from sus.config import AssetConfig
+from sus.http_client import create_http_client
 
 if TYPE_CHECKING:
+    from sus.config import SusConfig
     from sus.outputs import OutputManager
 
 
@@ -43,7 +45,8 @@ class AssetStats:
     failed: int = 0
     skipped: int = 0  # Already exists
     total_bytes: int = 0
-    errors: dict[str, int] = field(default_factory=dict)  # error_type -> count
+    # error_type -> list of error dicts
+    errors: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
 
 
 class AssetDownloader:
@@ -58,14 +61,14 @@ class AssetDownloader:
 
     def __init__(
         self,
-        config: AssetConfig,
+        config: "SusConfig",
         output_manager: "OutputManager",
         client: httpx.AsyncClient | None = None,
     ):
         """Initialize asset downloader.
 
         Args:
-            config: AssetConfig from SusConfig
+            config: Full SusConfig (for accessing asset and crawling settings)
             output_manager: OutputManager instance (for path resolution)
             client: Optional HTTP client (for testing with mocks)
         """
@@ -76,7 +79,12 @@ class AssetDownloader:
         self.stats = AssetStats()
 
         # Semaphore for concurrent downloads (limit to avoid overwhelming)
-        self.semaphore = asyncio.Semaphore(config.max_concurrent_asset_downloads)
+        self.semaphore = asyncio.Semaphore(config.assets.max_concurrent_asset_downloads)
+
+    async def _ensure_client(self) -> None:
+        """Ensure HTTP client is initialized."""
+        if self.client is None:
+            self.client = create_http_client(self.config)
 
     async def download_all(self, assets: list[str]) -> AssetStats:
         """Download all assets concurrently.
@@ -95,35 +103,25 @@ class AssetDownloader:
         5. Update stats based on results
         6. Close client if we created it
         """
-        # Skip if downloads disabled
-        if not self.config.download:
+        if not self.config.assets.download:
             return self.stats
 
-        # Filter duplicates
         unique_assets = [url for url in assets if url not in self.downloaded]
 
-        # Nothing to download
         if not unique_assets:
             return self.stats
 
-        # Create client if needed
         client_created = False
         if self.client is None:
-            self.client = httpx.AsyncClient(
-                timeout=30.0,
-                follow_redirects=True,
-                headers={"User-Agent": "SUS/0.1.0 (Simple Universal Scraper)"},
-            )
+            await self._ensure_client()
             client_created = True
 
         try:
-            # Download concurrently
             tasks = [self._download_asset(url) for url in unique_assets]
             await asyncio.gather(*tasks, return_exceptions=True)
 
             return self.stats
         finally:
-            # Only close if we created the client
             if client_created and self.client:
                 await self.client.aclose()
                 self.client = None
@@ -145,43 +143,83 @@ class AssetDownloader:
         """
         async with self.semaphore:
             try:
-                # Get file path from output manager
                 file_path = self.output_manager.get_asset_path(url)
 
-                # Skip if file exists
                 if file_path.exists():
                     self.stats.skipped += 1
                     return
 
-                # Download
                 if self.client is None:
                     # This should not happen, but handle gracefully
                     self.stats.failed += 1
-                    self.stats.errors["ClientNotInitialized"] = (
-                        self.stats.errors.get("ClientNotInitialized", 0) + 1
+                    if "ClientNotInitialized" not in self.stats.errors:
+                        self.stats.errors["ClientNotInitialized"] = []
+                    self.stats.errors["ClientNotInitialized"].append(
+                        {"url": url, "error": "HTTP client not initialized"}
                     )
                     return
 
                 response = await self.client.get(url)
                 response.raise_for_status()
 
-                # Write to file
-                file_path.parent.mkdir(parents=True, exist_ok=True)
-                file_path.write_bytes(response.content)
+                content_length = response.headers.get("content-length")
+                if content_length and self.output_manager.config.crawling.max_asset_size_mb:
+                    try:
+                        size_mb = int(content_length) / (1024 * 1024)
+                        if size_mb > self.output_manager.config.crawling.max_asset_size_mb:
+                            self.stats.failed += 1
+                            if "FileTooLarge" not in self.stats.errors:
+                                self.stats.errors["FileTooLarge"] = []
+                            max_size_mb = self.output_manager.config.crawling.max_asset_size_mb
+                            error_msg = (
+                                f"Asset size {size_mb:.1f}MB exceeds limit of {max_size_mb}MB"
+                            )
+                            self.stats.errors["FileTooLarge"].append(
+                                {"url": url, "error": error_msg}
+                            )
+                            # Skip this asset (best-effort)
+                            return
+                    except ValueError:
+                        # Invalid Content-Length header - skip check, proceed with download
+                        pass
 
-                # Update stats
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                async with aiofiles.open(file_path, "wb") as f:
+                    await f.write(response.content)
+
                 self.downloaded.add(url)
                 self.stats.downloaded += 1
                 self.stats.total_bytes += len(response.content)
 
             except httpx.HTTPError as e:
-                # Track error
                 self.stats.failed += 1
                 error_type = type(e).__name__
-                self.stats.errors[error_type] = self.stats.errors.get(error_type, 0) + 1
+                if error_type not in self.stats.errors:
+                    self.stats.errors[error_type] = []
+                self.stats.errors[error_type].append({"url": url, "error": str(e)})
+
+            except OSError as e:
+                self.stats.failed += 1
+
+                if e.errno == errno.ENOSPC:
+                    error_type = "disk_full"
+                    # Log but don't stop (assets are best-effort)
+                elif e.errno == errno.EACCES:
+                    error_type = "permission_denied"
+                else:
+                    error_type = "disk_io"
+
+                # Track as list of dicts (consistent with scraper.py)
+                if error_type not in self.stats.errors:
+                    self.stats.errors[error_type] = []
+                self.stats.errors[error_type].append(
+                    {"url": url, "error": str(e), "errno": e.errno}
+                )
 
             except Exception as e:
-                # Track unexpected error
+                # Track other errors (HTTP, conversion, etc.)
                 self.stats.failed += 1
                 error_type = type(e).__name__
-                self.stats.errors[error_type] = self.stats.errors.get(error_type, 0) + 1
+                if error_type not in self.stats.errors:
+                    self.stats.errors[error_type] = []
+                self.stats.errors[error_type].append({"url": url, "error": str(e)})

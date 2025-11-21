@@ -1,0 +1,157 @@
+# Sitemap-Based Documentation Scraper Configuration
+# This example demonstrates sitemap.xml parsing with auto-discovery
+# Target: Flask documentation (has sitemap at /sitemap.xml)
+
+# Project metadata
+name: flask-sitemap-demo
+description: Flask documentation scraper using sitemap.xml discovery
+
+# Site configuration
+site:
+  # Starting URLs (used only if sitemap is disabled or no sitemap URLs found)
+  start_urls:
+    - https://flask.palletsprojects.com/en/stable/
+
+  # Allowed domains
+  allowed_domains:
+    - flask.palletsprojects.com
+
+# Crawling rules and behavior
+crawling:
+  # Sitemap configuration (NEW FEATURE)
+  sitemap:
+    # Enable sitemap.xml parsing
+    enabled: true
+
+    # Auto-discover sitemaps from robots.txt and /sitemap.xml
+    # If true, will check:
+    # 1. robots.txt for Sitemap: directives
+    # 2. /sitemap.xml at site root
+    auto_discover: true
+
+    # Explicit sitemap URLs (in addition to auto-discovery)
+    # Useful if sitemaps are at non-standard locations
+    urls: []
+      # - https://example.com/sitemap-docs.xml
+      # - https://example.com/sitemap-blog.xml
+
+    # Sort URLs by priority field (highest first)
+    # If false, URLs are loaded in sitemap order
+    respect_priority: true
+
+    # Maximum URLs to load from sitemaps
+    # Useful for testing or limiting scope
+    # null = unlimited
+    max_urls: null
+
+    # Strict mode: raise errors on malformed sitemaps
+    # If false, skip invalid entries and continue
+    strict: false
+
+  # URL filtering (applied to discovered URLs)
+  # Note: Sitemap URLs bypass these filters
+  include_patterns:
+    - pattern: "^/en/stable/"
+      type: regex
+
+  exclude_patterns:
+    - pattern: "*.pdf"
+      type: glob
+    - pattern: "/en/latest/"  # Exclude development version
+      type: prefix
+
+  # No depth limit
+  depth_limit: null
+
+  # Limit pages for testing (null = unlimited)
+  max_pages: null
+
+  # Rate limiting
+  delay_between_requests: 0.5
+
+  # Concurrency settings
+  global_concurrent_requests: 25
+  per_domain_concurrent_requests: 5
+
+  # Retry settings
+  max_retries: 3
+  retry_backoff: 2.0
+
+  # Respect robots.txt
+  respect_robots_txt: true
+
+# Output configuration
+output:
+  base_dir: output
+  site_dir: null
+  docs_dir: docs
+  assets_dir: assets
+
+  path_mapping:
+    mode: auto
+    strip_prefix: /en/stable
+    index_file: index.md
+
+  markdown:
+    add_frontmatter: true
+    frontmatter_fields:
+      - title
+      - url
+      - scraped_at
+
+# Asset handling
+assets:
+  download: true
+  types:
+    - images
+    - css
+    - js
+  rewrite_paths: true
+
+
+# --- Usage Examples ---
+#
+# 1. Basic sitemap scraping with auto-discovery:
+#    uv run sus scrape --config examples/sitemap-docs.yaml
+#
+# 2. Test with limited URLs:
+#    uv run sus scrape --config examples/sitemap-docs.yaml --max-pages 10
+#
+# 3. Dry-run to preview URLs from sitemap:
+#    uv run sus scrape --config examples/sitemap-docs.yaml --dry-run
+#
+# 4. Verbose logging to see sitemap discovery:
+#    uv run sus scrape --config examples/sitemap-docs.yaml --verbose
+#
+# --- Sitemap Behavior ---
+#
+# When sitemap.enabled = true:
+# - URLs from sitemaps are added to crawl queue first
+# - Sitemap URLs BYPASS include/exclude filters (treated as explicit)
+# - If auto_discover = true, checks robots.txt and /sitemap.xml
+# - Handles sitemap indexes (recursive parsing)
+# - Supports compressed sitemaps (.xml.gz)
+# - Respects priority field if respect_priority = true
+# - Detects and prevents circular references in sitemap indexes
+#
+# Priority Sorting:
+# - If respect_priority = true, URLs sorted by <priority> field (1.0 = highest)
+# - URLs without priority default to 0.5
+# - Useful for scraping most important pages first
+#
+# Strict vs Non-Strict Mode:
+# - strict = false (default): Skip invalid entries, continue parsing
+# - strict = true: Raise SitemapError on malformed XML, missing fields, etc.
+#
+# --- When to Use Sitemaps ---
+#
+# Use sitemaps when:
+# - Site provides comprehensive sitemap.xml
+# - You want to scrape specific pages listed in sitemap
+# - You need priority-based crawling
+# - Start URLs + link following would miss pages
+#
+# Don't use sitemaps when:
+# - Site doesn't have sitemaps
+# - You want to discover URLs via link crawling
+# - Sitemap is incomplete or outdated

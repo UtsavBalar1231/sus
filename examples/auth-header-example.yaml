@@ -1,0 +1,73 @@
+# Header-Based Authentication Example
+# Demonstrates API key and custom header authentication
+# Target: ReqRes.in API (free fake REST API for testing)
+
+# Project metadata
+name: reqres-api-demo
+description: Test header authentication using ReqRes.in public API
+
+# Site configuration
+site:
+  start_urls:
+    - https://reqres.in/api/users
+    - https://reqres.in/api/users?page=1
+    - https://reqres.in/api/users?page=2
+  allowed_domains:
+    - reqres.in
+
+# Crawling configuration
+crawling:
+  max_pages: 10  # ReqRes is a test service, limit requests
+  delay_between_requests: 1.0  # Be respectful to public service
+
+  # Authentication configuration
+  authentication:
+    enabled: true
+    auth_type: header  # Header-based authentication
+
+    # Custom headers
+    # Note: ReqRes.in doesn't actually require auth, but accepts any headers
+    # This demonstrates the syntax for APIs that DO require authentication
+    headers:
+      # Example API Key header (common pattern)
+      X-API-Key: "demo-api-key"
+
+      # Example Authorization header with Bearer token
+      # Authorization: "Bearer your-token-here"
+
+      # Example custom headers
+      # X-User-Id: "user123"
+      # X-Client-Version: "1.0"
+
+# Output configuration
+output:
+  base_dir: output/reqres-api-demo
+  path_mapping:
+    mode: auto
+    strip_prefix: /api
+
+# Markdown configuration
+markdown:
+  add_frontmatter: true
+  frontmatter_fields:
+    - title
+    - url
+    - scraped_at
+
+# Notes:
+# - ReqRes.in is a free fake REST API for testing (no auth required)
+# - Demonstrates header-based auth syntax for real APIs
+# - For production APIs with actual auth requirements:
+#   1. Get API key from API provider
+#   2. Replace "demo-api-key" with actual key
+#   3. Use correct header name (X-API-Key, Authorization, etc.)
+#   4. Store keys securely (environment variables, secrets manager)
+#
+# Common header patterns:
+# - X-API-Key: "key" - Simple API key
+# - Authorization: "Bearer token" - OAuth2 or JWT token
+# - Authorization: "Token token" - Token-based auth
+# - X-Auth-Token: "token" - Custom token header
+#
+# Example usage:
+#   sus scrape --config examples/auth-header-example.yaml --dry-run

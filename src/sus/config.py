@@ -1,16 +1,16 @@
 """Configuration system.
 
-YAML configuration files validated by Pydantic models. Provides type-safe configuration
-with validation, sensible defaults, and clear error messages. Main function: load_config().
+YAML configuration files validated by Pydantic models with type-safe schemas, validation,
+sensible defaults, and clear error messages. Entry point: load_config().
 """
 
 import fnmatch
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from sus.exceptions import ConfigError
 
@@ -75,6 +75,288 @@ class SiteConfig(BaseModel):
     )
 
 
+class SitemapConfig(BaseModel):
+    """Sitemap.xml parsing configuration.
+
+    Controls whether to parse sitemaps, how to discover them, and how to handle URLs.
+    """
+
+    enabled: bool = Field(
+        default=False,
+        description="Whether to parse sitemap.xml files",
+    )
+    auto_discover: bool = Field(
+        default=True,
+        description="Auto-discover sitemaps from robots.txt and /sitemap.xml",
+    )
+    urls: list[str] = Field(
+        default_factory=list,
+        description="Explicit sitemap URLs to parse (in addition to auto-discovery)",
+    )
+    respect_priority: bool = Field(
+        default=False,
+        description="Sort URLs by priority field (highest first)",
+    )
+    max_urls: int | None = Field(
+        default=None,
+        ge=1,
+        description="Maximum URLs to load from sitemaps (None = unlimited)",
+    )
+    strict: bool = Field(
+        default=False,
+        description="If True, raise errors on malformed sitemaps; if False, skip invalid entries",
+    )
+
+
+class CheckpointConfig(BaseModel):
+    """Checkpoint/resume configuration for incremental scraping."""
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable checkpoint/resume functionality",
+    )
+    backend: Literal["json", "sqlite"] = Field(
+        default="json",
+        description="Backend type: json (default, <10K pages) or sqlite (>10K pages)",
+    )
+    checkpoint_file: str = Field(
+        default=".sus_checkpoint.json",
+        description=(
+            "Checkpoint file name (relative to output directory). Use .json or .db extension."
+        ),
+    )
+    checkpoint_interval_pages: int = Field(
+        default=10,
+        ge=1,
+        description="Save checkpoint every N pages",
+    )
+    detect_changes: bool = Field(
+        default=True,
+        description="Detect content changes via SHA-256 hashing",
+    )
+    force_redownload_after_days: int | None = Field(
+        default=7,
+        ge=1,
+        description="Force redownload if page older than N days (None = disable)",
+    )
+
+
+class CacheConfig(BaseModel):
+    """HTTP caching configuration for development and repeated crawls.
+
+    Uses Hishel library for RFC 9111 compliant HTTP caching.
+    Speeds up repeated crawls during development by caching HTTP responses.
+    """
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable HTTP caching (opt-in for development/testing)",
+    )
+    backend: Literal["sqlite", "memory"] = Field(
+        default="sqlite",
+        description=(
+            "Cache backend: sqlite (persistent, better performance), "
+            "memory (ephemeral, cache lost on restart)"
+        ),
+    )
+    cache_dir: str = Field(
+        default=".sus_cache",
+        description="Cache directory (relative to output directory)",
+    )
+    ttl_seconds: int | None = Field(
+        default=3600,
+        ge=60,
+        description=(
+            "Cache TTL in seconds (None = respect server headers only). "
+            "Overrides server Cache-Control headers when set."
+        ),
+    )
+
+
+class JavaScriptConfig(BaseModel):
+    """JavaScript rendering configuration using Playwright.
+
+    Controls browser-based rendering for SPAs and JavaScript-heavy sites.
+    Requires optional 'js' dependency: uv sync --group js && playwright install chromium
+    """
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable JavaScript rendering with Playwright browser",
+    )
+    wait_for: Literal["domcontentloaded", "load", "networkidle"] = Field(
+        default="networkidle",
+        description=(
+            "Wait strategy: domcontentloaded (fast), load (images), networkidle (all requests)"
+        ),
+    )
+    wait_timeout_ms: int = Field(
+        default=30000,
+        ge=1000,
+        le=120000,
+        description="Maximum time to wait for page load in milliseconds (1s-120s)",
+    )
+    user_agent_override: str | None = Field(
+        default=None,
+        description="Custom user agent for browser (None = use default)",
+    )
+    viewport_width: int = Field(
+        default=1920,
+        ge=320,
+        le=3840,
+        description="Browser viewport width in pixels",
+    )
+    viewport_height: int = Field(
+        default=1080,
+        ge=240,
+        le=2160,
+        description="Browser viewport height in pixels",
+    )
+    javascript_enabled: bool = Field(
+        default=True,
+        description="Enable JavaScript execution in browser (disable for debugging)",
+    )
+    context_pool_size: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Number of browser contexts to pool for reuse (reduces overhead)",
+    )
+
+
+class AuthenticationConfig(BaseModel):
+    """Authentication configuration for accessing protected content.
+
+    Supports multiple authentication methods:
+    - basic: HTTP Basic Authentication (username/password)
+    - cookie: Cookie-based session authentication
+    - header: Custom header authentication (API keys, tokens)
+    - oauth2: OAuth 2.0 Client Credentials flow
+
+    Only one auth method should be configured per site.
+    """
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable authentication",
+    )
+    auth_type: Literal["basic", "cookie", "header", "oauth2"] | None = Field(
+        default=None,
+        description="Authentication type (required if enabled=True)",
+    )
+
+    # Basic Auth fields
+    username: str | None = Field(
+        default=None,
+        description="Username for Basic Auth",
+    )
+    password: str | None = Field(
+        default=None,
+        description=(
+            "Password for Basic Auth. "
+            "⚠️ SECURITY: Use environment variables instead of plaintext. "
+            "Never commit secrets to version control."
+        ),
+    )
+
+    # Cookie Auth fields
+    cookies: dict[str, str] = Field(
+        default_factory=dict,
+        description="Session cookies for Cookie Auth (key=cookie_name, value=cookie_value)",
+    )
+
+    # Header Auth fields
+    headers: dict[str, str] = Field(
+        default_factory=dict,
+        description="Custom headers for Header Auth (e.g., {'X-API-Key': 'secret'})",
+    )
+
+    # OAuth2 fields
+    client_id: str | None = Field(
+        default=None,
+        description="OAuth2 client ID",
+    )
+    client_secret: str | None = Field(
+        default=None,
+        description=(
+            "OAuth2 client secret. "
+            "⚠️ SECURITY: Use environment variables instead of plaintext. "
+            "Never commit secrets to version control."
+        ),
+    )
+    token_url: str | None = Field(
+        default=None,
+        description="OAuth2 token endpoint URL",
+    )
+    scope: str | None = Field(
+        default=None,
+        description="OAuth2 scope (optional)",
+    )
+
+    @model_validator(mode='after')
+    def validate_auth_config(self) -> 'AuthenticationConfig':
+        """Validate cross-field authentication requirements."""
+        if not self.enabled:
+            return self
+
+        # If enabled, auth_type is required
+        if self.auth_type is None:
+            raise ValueError("auth_type is required when authentication is enabled")
+
+        # Validate required fields for each auth type
+        if self.auth_type == "basic":
+            if not self.username or not self.password:
+                raise ValueError("username and password are required for Basic Auth")
+        elif self.auth_type == "cookie":
+            if not self.cookies:
+                raise ValueError("cookies dict is required for Cookie Auth")
+        elif self.auth_type == "header":
+            if not self.headers:
+                raise ValueError("headers dict is required for Header Auth")
+        elif self.auth_type == "oauth2" and (
+            not self.client_id or not self.client_secret or not self.token_url
+        ):
+            raise ValueError(
+                "client_id, client_secret, and token_url are required for OAuth2"
+            )
+
+        return self
+
+
+class PipelineConfig(BaseModel):
+    """Producer-consumer pipeline configuration for concurrent processing.
+
+    Enables pipeline architecture where crawling and processing happen in parallel
+    via multiple worker pools. Target: 3-10x throughput improvement over sequential.
+
+    Note: Crawl workers are controlled by global_concurrent_requests.
+    Pipeline adds parallel processing of fetched pages.
+    """
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable pipeline architecture for concurrent processing",
+    )
+    process_workers: int | None = Field(
+        default=None,
+        ge=1,
+        le=50,
+        description="Number of process workers (None = min(10, cpu_count))",
+    )
+    queue_maxsize: int = Field(
+        default=100,
+        ge=10,
+        le=1000,
+        description="Maximum size of processing queue",
+    )
+    max_queue_memory_mb: int = Field(
+        default=500,
+        ge=100,
+        le=4096,
+        description="Maximum memory usage per queue in MB (backpressure threshold)",
+    )
+
+
 class CrawlingRules(BaseModel):
     """Crawling behavior configuration.
 
@@ -115,18 +397,25 @@ class CrawlingRules(BaseModel):
         ge=1.0,
         description="Exponential backoff multiplier for retries",
     )
+    retry_jitter: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        description="Jitter for retry backoff (0-1 range, prevents thundering herd). "
+        "0 = no jitter, 1 = full jitter (recommended: 0.3)",
+    )
     global_concurrent_requests: int = Field(
-        default=10,
+        default=25,  # Increased from 10: HTTP/2 + connection pooling supports higher concurrency
         ge=1,
         description="Global concurrency limit across all domains",
     )
     per_domain_concurrent_requests: int = Field(
-        default=2,
+        default=5,  # Increased from 2: Better utilization of HTTP/2 multiplexing
         ge=1,
         description="Per-domain concurrency limit",
     )
     rate_limiter_burst_size: int = Field(
-        default=5,
+        default=10,  # Increased from 5: Allow larger bursts for faster scraping
         ge=1,
         description="Token bucket burst size for rate limiting",
     )
@@ -137,6 +426,54 @@ class CrawlingRules(BaseModel):
     respect_robots_txt: bool = Field(
         default=True,
         description="Whether to respect robots.txt rules",
+    )
+    max_page_size_mb: float | None = Field(
+        default=10.0,
+        ge=0.1,
+        description="Maximum page size in MB (None = unlimited). Prevents downloading huge files.",
+    )
+    max_asset_size_mb: float | None = Field(
+        default=50.0,
+        ge=0.1,
+        description=(
+            "Maximum asset size in MB (None = unlimited). Prevents downloading huge images/videos."
+        ),
+    )
+    max_redirects: int = Field(
+        default=10,
+        ge=0,
+        le=20,
+        description="Maximum redirects to follow per request. Prevents redirect loops.",
+    )
+    memory_check_interval: int = Field(
+        default=1,
+        ge=1,
+        description="Check memory usage every N pages (default: 1 = every page). "
+        "Reduces frequency to improve performance if needed.",
+    )
+    sitemap: SitemapConfig = Field(
+        default_factory=SitemapConfig,
+        description="Sitemap.xml parsing configuration",
+    )
+    javascript: JavaScriptConfig = Field(
+        default_factory=JavaScriptConfig,
+        description="JavaScript rendering configuration",
+    )
+    checkpoint: CheckpointConfig = Field(
+        default_factory=CheckpointConfig,
+        description="Checkpoint/resume configuration",
+    )
+    pipeline: PipelineConfig = Field(
+        default_factory=PipelineConfig,
+        description="Producer-consumer pipeline configuration",
+    )
+    authentication: AuthenticationConfig = Field(
+        default_factory=AuthenticationConfig,
+        description="Authentication configuration",
+    )
+    cache: CacheConfig = Field(
+        default_factory=CacheConfig,
+        description="HTTP caching configuration",
     )
 
 
@@ -157,6 +494,37 @@ class PathMappingConfig(BaseModel):
     )
 
 
+class ContentFilteringConfig(BaseModel):
+    """Content filtering configuration for removing unwanted elements.
+
+    Allows filtering HTML content by CSS selectors before conversion to Markdown.
+    Useful for removing navigation bars, footers, ads, and other noise.
+    """
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable content filtering",
+    )
+    remove_selectors: list[str] = Field(
+        default_factory=list,
+        description="CSS selectors for elements to remove (e.g., ['nav', 'footer', '.ads'])",
+    )
+    keep_selectors: list[str] = Field(
+        default_factory=list,
+        description="CSS selectors for elements to keep (extract only these, ignore rest)",
+    )
+
+    @model_validator(mode='after')
+    def validate_filtering_config(self) -> 'ContentFilteringConfig':
+        """Validate that at least one selector is provided when filtering is enabled."""
+        if self.enabled and not self.keep_selectors and not self.remove_selectors:
+            raise ValueError(
+                "At least one of keep_selectors or remove_selectors must be provided "
+                "when content filtering is enabled"
+            )
+        return self
+
+
 class MarkdownConfig(BaseModel):
     """Markdown conversion options."""
 
@@ -167,6 +535,10 @@ class MarkdownConfig(BaseModel):
     frontmatter_fields: list[str] = Field(
         default_factory=lambda: ["title", "url", "scraped_at"],
         description="Fields to include in frontmatter",
+    )
+    content_filtering: ContentFilteringConfig = Field(
+        default_factory=ContentFilteringConfig,
+        description="Content filtering configuration",
     )
 
 
@@ -221,6 +593,23 @@ class AssetConfig(BaseModel):
     )
 
 
+class PluginConfig(BaseModel):
+    """Plugin system configuration."""
+
+    enabled: bool = Field(
+        default=False,
+        description="Whether to enable plugin system",
+    )
+    plugins: list[str] = Field(
+        default_factory=list,
+        description="List of plugin module paths to load",
+    )
+    plugin_settings: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Plugin-specific settings keyed by plugin path",
+    )
+
+
 class SusConfig(BaseModel):
     """Main configuration model for SUS scraper.
 
@@ -252,6 +641,10 @@ class SusConfig(BaseModel):
     assets: AssetConfig = Field(
         default_factory=AssetConfig,
         description="Asset download configuration",
+    )
+    plugins: PluginConfig = Field(
+        default_factory=PluginConfig,
+        description="Plugin system configuration",
     )
 
     @field_validator("name")

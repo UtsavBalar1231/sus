@@ -1,0 +1,80 @@
+# Pipeline Mode Configuration Example
+# Demonstrates producer-consumer pipeline for 3-10x throughput improvement
+# Target: Django documentation (large site ideal for parallel processing)
+
+# Project metadata
+name: django-pipeline-demo
+description: Django documentation scraper with pipeline mode for performance
+
+# Site configuration
+site:
+  start_urls:
+    - https://docs.djangoproject.com/en/stable/
+  allowed_domains:
+    - docs.djangoproject.com
+
+# Crawling configuration with pipeline enabled
+crawling:
+  # Only scrape English stable version
+  include_patterns:
+    - pattern: "^/en/stable/"
+      type: regex
+
+  # Skip other versions and Sphinx artifacts
+  exclude_patterns:
+    - pattern: "^/(es|fr|ja|ko)/"
+      type: regex
+    - pattern: "/_static/"
+      type: prefix
+    - pattern: "/genindex/"
+      type: prefix
+
+  # Standard crawling settings
+  max_pages: 300
+  delay_between_requests: 0.5  # seconds (token bucket rate limiting)
+  global_concurrent_requests: 25  # Crawler concurrency
+  per_domain_concurrent_requests: 5
+
+  # Pipeline configuration
+  pipeline:
+    enabled: true  # Enable pipeline mode for parallel processing
+
+    # Number of process workers (consumers)
+    # Recommendation: Start with 2x CPU cores, tune based on benchmarks
+    # - CPU-bound workloads: 2-4 workers
+    # - I/O-bound workloads: 5-10 workers
+    # - Large sites: 10-20 workers
+    process_workers: 10
+
+    # Maximum queue size (number of items)
+    # Prevents crawler from overwhelming memory with fetched pages
+    # Balance: Too small = crawler waits, too large = memory pressure
+    queue_maxsize: 100
+
+    # Maximum queue memory (MB)
+    # Hard limit on memory usage for queued items
+    # System applies backpressure when 95% of limit reached
+    max_queue_memory_mb: 500
+
+# Output configuration
+output:
+  base_dir: output/django-pipeline-demo
+  path_mapping:
+    mode: auto
+    strip_prefix: /en/stable
+
+# Asset configuration
+assets:
+  download: true
+  types:
+    - images
+    - css
+    - js
+
+# Markdown configuration
+markdown:
+  add_frontmatter: true
+  frontmatter_fields:
+    - title
+    - url
+    - scraped_at

@@ -1,7 +1,6 @@
 # SUS - Simple Universal Scraper
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-139%20passing-green.svg)]()
 [![Type Checked](https://img.shields.io/badge/mypy-strict-blue.svg)]()
 
 Async documentation scraper for converting websites to Markdown. Built with Python 3.12+, httpx, and asyncio.
@@ -22,15 +21,19 @@ SUS is a **config-driven web scraper** for converting documentation websites to 
 
 ## Features
 
-- **Async HTTP crawling** - httpx client with asyncio for concurrent page fetching
-- **YAML configuration** - Pydantic 2.9+ validated config files with type checking
-- **Token bucket rate limiting** - Configurable requests/second with burst capacity (default: 2 req/s, burst=5)
-- **Dual concurrency limits** - Separate global (default: 10) and per-domain (default: 2) connection limits
-- **HTML → Markdown conversion** - markdownify-based conversion with customizable YAML frontmatter fields
-- **Link rewriting** - Converts absolute URLs to relative paths calculated by directory depth
-- **Asset downloading** - Concurrent downloads of images, CSS, JS with SHA-256 deduplication
-- **Rich terminal UI** - Real-time crawl statistics, progress bars, and HTTP status tracking
-- **URL pattern matching** - Three filter types: regex (re.match), glob (fnmatch), prefix (str.startswith)
+- **Config-driven**: Define scraping behavior via YAML
+- **Native async**: Built with httpx and asyncio (not Scrapy/Twisted)
+- **Type-safe**: Full mypy --strict compliance
+- **Well-tested**: 385+ tests with comprehensive coverage
+- **Fast**: HTTP/2, connection pooling, concurrent downloads, HTTP caching
+- **Robust**: Rate limiting, retry logic, error handling
+- **Markdown conversion**: Clean HTML → Markdown with frontmatter
+- **Asset handling**: Download and rewrite image/CSS/JS references
+- **Checkpoint/Resume**: Incremental scraping with crash recovery
+- **Sitemap Support**: Fast URL discovery via sitemap.xml
+- **JavaScript Rendering**: Playwright integration for SPAs
+- **Plugin System**: Extensible architecture with built-in plugins
+- **HTTP Caching**: RFC 9111 compliant caching for development
 
 ---
 
@@ -114,10 +117,13 @@ Run the scraper with a configuration file.
 sus scrape --config FILE [OPTIONS]
 
 Options:
-  --output, -o DIR    Override output directory
-  --max-pages N       Limit number of pages to crawl
-  --verbose, -v       Enable verbose logging (DEBUG)
-  --dry-run           Simulate without writing files
+  --output, -o DIR      Override output directory
+  --max-pages N         Limit number of pages to crawl
+  --verbose, -v         Enable verbose logging (DEBUG)
+  --dry-run             Simulate without writing files
+  --resume              Resume from checkpoint (requires checkpoint.enabled)
+  --reset-checkpoint    Delete checkpoint and start fresh
+  --clear-cache         Clear HTTP cache before scraping
 ```
 
 ### `sus validate`
@@ -151,7 +157,7 @@ sus list
 ### Running Tests
 
 ```bash
-# Run all tests (139+ passing)
+# Run all tests (203+ passing)
 uv run pytest
 
 # Run with coverage
@@ -184,14 +190,14 @@ For more details, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Architecture
 
-SUS implements a six-phase pipeline architecture:
+SUS implements a six-stage pipeline architecture:
 
 1. **Configuration System** (`config.py`) - Pydantic 2.9+ models with YAML loading and validation
 2. **Crawler Engine** (`crawler.py`) - httpx async client with token bucket rate limiter and semaphore-based concurrency
 3. **URL Filtering** (`rules.py`) - lxml-based link extraction with regex/glob/prefix pattern matching
 4. **Content Conversion** (`converter.py`) - markdownify HTML parser with YAML frontmatter generation
 5. **CLI Interface** (`cli.py`) - Typer commands with Rich progress bars and real-time statistics
-6. **Testing** (`tests/`) - 139+ pytest tests with pytest-asyncio and pytest-httpx, mypy --strict type checking
+6. **Testing** (`tests/`) - 203+ pytest tests with pytest-asyncio and pytest-httpx, mypy --strict type checking
 
 See the [full documentation](https://UtsavBalar1231.github.io/sus/) for implementation details.
 
@@ -199,18 +205,10 @@ See the [full documentation](https://UtsavBalar1231.github.io/sus/) for implemen
 
 ## Project Status
 
-**Current Release: v0.1.0**
-
-- Core functionality implemented
-- 139 tests passing with pytest
+- 388+ tests passing with pytest
 - mypy --strict type checking (zero errors)
-- Tested with Python 3.12 on Linux
-
-**Planned Features:**
-- JavaScript rendering with Playwright integration
-- Sitemap.xml parsing for site discovery
-- Checkpoint-based incremental scraping (resume interrupted crawls)
-- Plugin system for custom content processors
+- Tested with Python 3.12+ on Linux
+- Production-ready features: checkpoint/resume, sitemap parser, JavaScript rendering, plugin system, SQLite backend
 
 ---
 
@@ -224,6 +222,8 @@ This project is currently unlicensed. Please contact the maintainer for licensin
 
 **Core Runtime:**
 - [httpx](https://www.python-httpx.org/) 0.28+ - HTTP/2 async client for page fetching
+- [httpx-retries](https://github.com/florimondmanca/httpx-retries) 0.2+ - Adaptive retry logic with Retry-After support
+- [hishel](https://hishel.com/) 1.1+ - RFC 9111 compliant HTTP caching for development
 - [Pydantic](https://docs.pydantic.dev/) 2.9+ - YAML config validation with type coercion
 - [Typer](https://typer.tiangolo.com/) 0.15+ - CLI argument parsing and command routing
 - [Rich](https://rich.readthedocs.io/) 14+ - Terminal progress bars and formatted output
@@ -238,4 +238,4 @@ This project is currently unlicensed. Please contact the maintainer for licensin
 
 ---
 
-**SUS** - Simple Universal Scraper | Version 0.1.0
+**SUS** - Simple Universal Scraper

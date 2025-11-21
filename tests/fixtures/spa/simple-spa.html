@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple SPA Test</title>
+</head>
+<body>
+    <div id="app">Loading...</div>
+
+    <script>
+        // Simple JavaScript that renders content immediately
+        // Use IIFE to execute immediately (file:// URLs load synchronously)
+        (function() {
+            const app = document.getElementById('app');
+
+            // Render main content
+            app.innerHTML = `
+                <h1>Welcome to Simple SPA</h1>
+                <p>This content was rendered by JavaScript.</p>
+
+                <nav>
+                    <a href="/about">About</a>
+                    <a href="/contact">Contact</a>
+                    <a href="/docs">Documentation</a>
+                </nav>
+
+                <img src="/images/logo.png" alt="Logo">
+                <link rel="stylesheet" href="/styles/main.css">
+            `;
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React-like SPA Test</title>
+</head>
+<body>
+    <div id="root">
+        <div class="spinner">Loading React-like app...</div>
+    </div>
+
+    <script>
+        // Simulate React-like delayed rendering with multiple phases
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function renderApp() {
+            const root = document.getElementById('root');
+
+            // Phase 1: Initial mount (simulating React hydration)
+            await delay(100);
+            root.innerHTML = `
+                <div class="app-container">
+                    <header>Mounting components...</header>
+                </div>
+            `;
+
+            // Phase 2: Render main components
+            await delay(100);
+            root.innerHTML = `
+                <div class="app-container">
+                    <header>
+                        <h1>React-like SPA</h1>
+                        <nav>
+                            <a href="/home">Home</a>
+                            <a href="/products">Products</a>
+                            <a href="/blog">Blog</a>
+                        </nav>
+                    </header>
+                    <main>
+                        <p>This simulates a React-like rendering cycle with delayed updates.</p>
+                        <div id="dynamic-content">Loading data...</div>
+                    </main>
+                    <footer>
+                        <img src="/assets/footer-logo.png" alt="Footer Logo">
+                    </footer>
+                </div>
+            `;
+
+            // Phase 3: Simulate data fetching and dynamic content update
+            await delay(150);
+            const dynamicContent = document.getElementById('dynamic-content');
+            if (dynamicContent) {
+                dynamicContent.innerHTML = `
+                    <article>
+                        <h2>Dynamic Article</h2>
+                        <p>This content was loaded asynchronously.</p>
+                        <a href="/articles/1">Read more</a>
+                        <img src="/images/article-thumb.jpg" alt="Article thumbnail">
+                    </article>
+                `;
+            }
+
+            // Add CSS and JS assets
+            const head = document.querySelector('head');
+            const cssLink = document.createElement('link');
+            cssLink.rel = 'stylesheet';
+            cssLink.href = '/css/react-like.css';
+            head.appendChild(cssLink);
+
+            const script = document.createElement('script');
+            script.src = '/js/bundle.js';
+            document.body.appendChild(script);
+        }
+
+        // Start rendering immediately (file:// URLs load synchronously)
+        renderApp();
+    </script>
+</body>
+</html>

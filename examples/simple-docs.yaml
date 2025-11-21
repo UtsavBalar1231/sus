@@ -1,27 +1,28 @@
 # Simple Documentation Scraper Example
 # Minimal configuration showing only required fields
+# Target: Flask web framework documentation (clean, minimal docs site)
 
 # Project name (used for directory naming)
-name: my-docs
+name: flask-docs
 
 # Human-readable description
-description: Simple documentation scraper example
+description: Flask framework documentation scraper - minimal example
 
 # Site to scrape
 site:
   # Where to start crawling (required)
   start_urls:
-    - https://example.com/docs/
+    - https://flask.palletsprojects.com/en/stable/
 
   # Restrict crawling to these domains (required)
   allowed_domains:
-    - example.com
+    - flask.palletsprojects.com
 
 # Crawling behavior (all fields optional, defaults shown)
 crawling:
-  # Only scrape pages matching this pattern
+  # Only scrape stable version documentation
   include_patterns:
-    - pattern: "/docs/"
+    - pattern: "/en/stable/"
       type: prefix
 
   # Polite crawling: wait 0.5 seconds between requests
@@ -29,6 +30,9 @@ crawling:
 
   # Download up to 8 pages concurrently
   global_concurrent_requests: 8
+
+  # Limit pages for testing (remove for full scrape)
+  max_pages: 50
 
 # Output settings (all optional, defaults shown)
 output:
@@ -43,8 +47,8 @@ output:
   path_mapping:
     # Automatically convert URLs to file paths
     mode: auto
-    # Strip this prefix from URLs: /docs/ -> /
-    strip_prefix: /docs
+    # Strip this prefix from URLs: /en/stable/ -> /
+    strip_prefix: /en/stable
     # Name for directory index pages
     index_file: index.md
 

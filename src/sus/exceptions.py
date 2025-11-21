@@ -11,3 +11,7 @@ class ConfigError(SusError):
 
 class CrawlError(SusError):
     """Raised when crawling fails."""
+
+
+class SitemapError(SusError):
+    """Raised when sitemap parsing fails."""

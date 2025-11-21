@@ -1,12 +1,10 @@
 """Unit tests for URLNormalizer edge cases."""
 
+from typing import Literal
+
 import pytest
 
 from sus.rules import URLNormalizer
-
-# ============================================================================
-# URL Normalization Tests
-# ============================================================================
 
 
 @pytest.mark.parametrize(
@@ -129,11 +127,6 @@ def test_normalize_url_malformed(url: str) -> None:
         pass
 
 
-# ============================================================================
-# Dangerous Scheme Filtering Tests
-# ============================================================================
-
-
 @pytest.mark.parametrize(
     "url,expected_safe",
     [
@@ -176,11 +169,6 @@ def test_filter_dangerous_schemes_malformed(url: str) -> None:
     """Test dangerous scheme filter with malformed URLs."""
     # Malformed URLs should be considered unsafe (return False)
     assert URLNormalizer.filter_dangerous_schemes(url) is False
-
-
-# ============================================================================
-# Query Parameter Handling Tests
-# ============================================================================
 
 
 @pytest.mark.parametrize(
@@ -226,9 +214,9 @@ def test_filter_dangerous_schemes_malformed(url: str) -> None:
         ),
     ],
 )
-def test_handle_query_parameters(url: str, strategy: str, expected: str) -> None:
+def test_handle_query_parameters(url: str, strategy: Literal["strip", "preserve"], expected: str) -> None:
     """Test query parameter handling with strip/preserve strategies."""
-    assert URLNormalizer.handle_query_parameters(url, strategy) == expected  # type: ignore[arg-type]
+    assert URLNormalizer.handle_query_parameters(url, strategy) == expected
 
 
 def test_handle_query_parameters_preserves_fragments() -> None:
@@ -256,11 +244,6 @@ def test_handle_query_parameters_complex() -> None:
     assert "?" in result_preserve
     assert "foo=bar" in result_preserve
     assert "baz=qux" in result_preserve
-
-
-# ============================================================================
-# URL Normalization Edge Cases
-# ============================================================================
 
 
 def test_normalize_url_ipv4_address() -> None:
@@ -370,11 +353,6 @@ def test_normalize_url_consecutive_processing() -> None:
     assert first_pass == "http://example.com/Path?query=1"
 
 
-# ============================================================================
-# Combined Workflow Tests
-# ============================================================================
-
-
 def test_complete_url_processing_workflow() -> None:
     """Test complete URL processing workflow: normalize + filter + strip query."""
     raw_url = "HTTP://Example.COM:80/path?tracking=123&session=abc#top"
@@ -434,13 +412,9 @@ def test_query_param_strategy_affects_deduplication() -> None:
     ]
 
     # With strip strategy, all should become the same
-    stripped = [
-        URLNormalizer.handle_query_parameters(url, "strip") for url in urls
-    ]
+    stripped = [URLNormalizer.handle_query_parameters(url, "strip") for url in urls]
     assert len(set(stripped)) == 1
 
     # With preserve strategy, all should be different
-    preserved = [
-        URLNormalizer.handle_query_parameters(url, "preserve") for url in urls
-    ]
+    preserved = [URLNormalizer.handle_query_parameters(url, "preserve") for url in urls]
     assert len(set(preserved)) == 3
