@@ -64,8 +64,8 @@ assets:
   # Download images, CSS, and JS files
   download: true
   types:
-    - images
+    - image
     - css
-    - js
+    - javascript
   # Rewrite asset URLs to relative paths
   rewrite_paths: true

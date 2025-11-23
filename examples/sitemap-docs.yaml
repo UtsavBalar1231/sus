@@ -103,9 +103,9 @@ output:
 assets:
   download: true
   types:
-    - images
+    - image
     - css
-    - js
+    - javascript
   rewrite_paths: true
 
 

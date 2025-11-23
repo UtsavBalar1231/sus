@@ -101,9 +101,9 @@ assets:
 
   # Asset types to download
   types:
-    - images
+    - image
     - css
-    - js
+    - javascript
 
   # Rewrite asset paths to relative paths
   rewrite_paths: true

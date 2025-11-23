@@ -67,9 +67,9 @@ output:
 assets:
   download: true
   types:
-    - images
+    - image
     - css
-    - js
+    - javascript
 
 # Markdown configuration
 markdown:
