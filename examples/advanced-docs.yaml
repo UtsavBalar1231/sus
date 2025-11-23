@@ -46,8 +46,10 @@ crawling:
     - pattern: "/_static/"
       type: prefix
 
-    # Skip binary downloads
-    - pattern: "*.{pdf,zip,tar.gz,exe,dmg}"
+    # Skip binary downloads (each extension needs separate pattern)
+    - pattern: "*.pdf"
+      type: glob
+    - pattern: "*.zip"
       type: glob
 
   # Crawl depth limit: how many links deep from start_urls
@@ -129,9 +131,9 @@ assets:
 
   # Which asset types to download
   types:
-    - images          # PNG, JPG, GIF, SVG, WebP, etc.
+    - image           # PNG, JPG, GIF, SVG, WebP, etc.
     - css             # Stylesheets
-    - js              # JavaScript files
+    - javascript      # JavaScript files
     - fonts           # Web fonts (WOFF, WOFF2, TTF, etc.)
 
   # Rewrite asset URLs in markdown to relative paths
