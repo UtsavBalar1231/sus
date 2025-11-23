@@ -189,13 +189,19 @@ class ContentConverter:
 
         Steps:
         1. Extract title from HTML if not provided (from <title> tag)
-        2. Convert HTML to Markdown using SusMarkdownConverter
-        3. Clean markdown (remove excessive blank lines, fix spacing)
-        4. Add frontmatter if configured
-        5. Return final markdown
+        2. Remove script/style elements completely (defensive - always done)
+        3. Apply content filtering if configured
+        4. Convert HTML to Markdown using SusMarkdownConverter
+        5. Clean markdown (remove excessive blank lines, fix spacing)
+        6. Add frontmatter if configured
+        7. Return final markdown
         """
         if title is None:
             title = self._extract_title(html)
+
+        # Always remove script/style elements completely before conversion
+        # This prevents JavaScript and CSS from appearing as text in markdown
+        html = self._remove_scripts_and_styles(html)
 
         if self.config.content_filtering.enabled:
             html = self._filter_content(html)
@@ -238,6 +244,60 @@ class ContentConverter:
             pass
 
         return "Untitled"
+
+    def _remove_scripts_and_styles(self, html: str) -> str:
+        """Remove script and style elements completely from HTML.
+
+        This is a defensive measure that ensures JavaScript and CSS code
+        never appears as text in the markdown output. Unlike markdownify's
+        'strip' parameter which only removes tags but preserves content,
+        this method removes both the elements and their content.
+
+        Args:
+            html: HTML content
+
+        Returns:
+            HTML with script/style elements removed
+
+        Examples:
+            >>> converter = ContentConverter(MarkdownConfig())
+            >>> html = '<html><body><script>alert("hi")</script><p>Content</p></body></html>'
+            >>> result = converter._remove_scripts_and_styles(html)
+            >>> 'alert' not in result
+            True
+            >>> 'Content' in result
+            True
+        """
+        try:
+            doc = lxml_html.fromstring(html)
+
+            # Remove all script elements (including inline and external)
+            # Using cssselect instead of xpath for better type safety
+            for script in doc.cssselect("script"):
+                parent = script.getparent()
+                if parent is not None:
+                    parent.remove(script)
+
+            # Remove all style elements (including inline CSS)
+            for style in doc.cssselect("style"):
+                parent = style.getparent()
+                if parent is not None:
+                    parent.remove(style)
+
+            # Remove noscript elements as well (no value in markdown)
+            for noscript in doc.cssselect("noscript"):
+                parent = noscript.getparent()
+                if parent is not None:
+                    parent.remove(noscript)
+
+            result = lxml_html.tostring(doc, encoding="unicode")
+            return cast("str", result)
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to remove script/style elements: {e}. Returning original HTML."
+            )
+            return html
 
     def _clean_markdown(self, markdown: str) -> str:
         """Clean markdown output.
@@ -344,8 +404,8 @@ class ContentConverter:
 
         Applies content filtering based on configuration:
         - If keep_selectors is specified, extract only those elements
-        - If remove_selectors is specified, remove those elements
-        - keep_selectors takes precedence over remove_selectors
+        - If remove_selectors is specified, remove those elements from the result
+        - Both can be used together: keep_selectors first, then remove_selectors
 
         Args:
             html: HTML content to filter
@@ -399,10 +459,11 @@ class ContentConverter:
                 for elem in kept_elements:
                     body.append(elem)
 
-                result = lxml_html.tostring(new_doc, encoding="unicode")
-                return cast("str", result)
+                # Update doc to the filtered version for potential remove_selectors
+                doc = new_doc
 
             # Strategy 2: Remove specified elements (blacklist approach)
+            # This now works on the keep_selectors result if both are specified
             if self.config.content_filtering.remove_selectors:
                 for selector in self.config.content_filtering.remove_selectors:
                     elements = doc.cssselect(selector)
@@ -411,6 +472,11 @@ class ContentConverter:
                         if parent is not None:
                             parent.remove(elem)
 
+            # Return the filtered document (or original if no filters applied)
+            if (
+                self.config.content_filtering.keep_selectors
+                or self.config.content_filtering.remove_selectors
+            ):
                 result = lxml_html.tostring(doc, encoding="unicode")
                 return cast("str", result)
 
