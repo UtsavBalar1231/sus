@@ -72,10 +72,12 @@ markdown_extensions:
       permalink: true
 nav:
   - Home: index.md
-  - User Guide:
-      - Configuration: api/config.md
-      - CLI Reference: api/cli.md
-      - Crawler: api/crawler.md
+  - Getting Started: getting-started.md
+  - Configuration: configuration.md
+  - Examples: examples.md
+  - Developer Guide:
+      - Contributing: CONTRIBUTING.md
+      - Technical Reference: CLAUDE.md
   - API Reference:
       - Overview: api/overview.md
       - Config: api/config.md

@@ -15,7 +15,7 @@ Thank you for your interest in contributing to SUS! This document provides guide
 
 ```bash
 # Clone the repository
-git clone <repo-url>
+git clone https://github.com/UtsavBalar1231/sus.git
 cd sus
 
 # Install dependencies

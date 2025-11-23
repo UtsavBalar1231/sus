@@ -1,104 +1,145 @@
-# SUS - Simple Universal Scraper
+# SUS Documentation
 
-Async documentation scraper for converting websites to Markdown format. Built with Python 3.12+, httpx, and asyncio.
+**Welcome to the SUS documentation!**
+
+SUS (Simple Universal Scraper) is a high-performance async web scraper for converting documentation websites to Markdown format. Built with Python 3.12+, httpx, and asyncio.
+
+---
+
+## Getting Started
+
+New to SUS? Start here for installation and your first scrape.
+
+**[Getting Started Guide →](getting-started.md)**
+
+Learn how to:
+- Install SUS with uv or pip
+- Run your first scrape
+- Understand the output structure
+- Explore next steps
+
+---
+
+## Configuration Reference
+
+Complete YAML configuration documentation for all features.
+
+**[Configuration Reference →](configuration.md)**
+
+Covers:
+- Basic configuration (minimal setup)
+- Authentication (Basic, Cookie, Header, OAuth2)
+- Checkpoint/Resume (incremental scraping)
+- JavaScript rendering (Playwright integration)
+- Sitemap parsing and HTTP caching
+- Pipeline mode, plugins, and more
+
+---
+
+## Examples
+
+Real-world configuration files for various documentation sites.
+
+**[Examples →](examples.md)**
+
+Includes configurations for:
+- Python documentation
+- Rust documentation
+- Go documentation
+- Vue.js documentation
+- And many more
+
+---
+
+## API Reference
+
+Python API documentation auto-generated from source code.
+
+**[API Overview →](api/overview.md)**
+
+Complete module reference:
+- Configuration system (`config.py`)
+- Crawler engine (`crawler.py`)
+- URL filtering (`rules.py`)
+- Content conversion (`converter.py`)
+- CLI interface (`cli.py`)
+- And more
+
+---
+
+## For Contributors
+
+Want to contribute to SUS? Check out the development guide.
+
+**[Contributing Guide →](CONTRIBUTING.md)**
+
+Includes:
+- Development setup
+- Running tests and type checking
+- Coding standards
+- Pull request process
+
+---
+
+## Quick Links
+
+- **[GitHub Repository](https://github.com/UtsavBalar1231/sus)** - Source code
+- **[Report Issues](https://github.com/UtsavBalar1231/sus/issues)** - Bug reports and feature requests
+- **[CLAUDE.md](CLAUDE.md)** - Comprehensive technical reference for Claude Code
+
+---
 
 ## What is SUS?
 
-SUS (Simple Universal Scraper) is a config-driven web scraper for converting documentation websites to Markdown format with preserved assets. Built with Python 3.12+ using httpx and asyncio, it controls crawling through YAML configuration files with regex/glob/prefix pattern matching, token bucket rate limiting, and dual-level concurrency controls.
+SUS is a **config-driven web scraper** designed for converting documentation websites to Markdown format with preserved assets. Control crawling behavior through YAML configuration files with regex/glob/prefix pattern matching, token bucket rate limiting, and dual-level concurrency controls.
 
-**Key features:**
+**Key capabilities:**
+- **25-50 pages/sec throughput** with HTTP/2 and connection pooling
+- **Checkpoint/Resume** for incremental scraping and crash recovery
+- **JavaScript rendering** via Playwright for SPA sites
+- **Authentication** with 4 providers (Basic, Cookie, Header, OAuth2)
+- **Plugin system** with 5 lifecycle hooks and 3 built-in plugins
+- **Type-safe** with Pydantic 2.9+ validation and mypy --strict compliance
 
-- httpx async HTTP client with asyncio for concurrent page fetching
-- Pydantic 2.9+ validated YAML configuration files
-- Token bucket rate limiting (configurable req/s with burst capacity)
-- Dual concurrency: global (10) + per-domain (2) connection limits
-- markdownify-based HTML → Markdown with YAML frontmatter
-- Link rewriting to relative paths calculated by directory depth
-- Concurrent asset downloads (images, CSS, JS) with SHA-256 deduplication
-- Rich terminal UI with real-time crawl statistics and progress tracking
+---
 
-## Quick Start
-
-### Installation
+## Installation
 
 ```bash
-# Clone the repository
-git clone <repo-url>
-cd sus
+# Using uv (recommended)
+uv pip install sus
 
-# Install dependencies with uv
-uv sync
+# Using pip
+pip install sus
 
 # Verify installation
-uv run sus --version
+sus --version
 ```
 
-### Your First Scrape
+**Requirements:** Python 3.12+
+
+---
+
+## Minimal Example
+
+```yaml
+name: my-docs
+
+site:
+  start_urls:
+    - https://docs.example.com/
+  allowed_domains:
+    - docs.example.com
+```
 
 ```bash
-# Scrape with example config (limit to 10 pages for testing)
-uv run sus scrape --config examples/aptly.yaml --max-pages 10
-
-# Full scrape (no page limit)
-uv run sus scrape --config examples/aptly.yaml
+sus scrape --config config.yaml
 ```
 
-### Create Your Own Config
+See the [Getting Started Guide](getting-started.md) for a complete tutorial.
 
-```bash
-# Interactive configuration wizard
-uv run sus init my-config.yaml
-
-# Validate your config
-uv run sus validate my-config.yaml
-
-# Run the scraper
-uv run sus scrape --config my-config.yaml
-```
-
-## Documentation Structure
-
-This documentation is organized into three main sections:
-
-### User Guide
-
-- **[Configuration Guide](api/config.md)** - Learn how to configure scrapers with YAML files
-- **[CLI Reference](api/cli.md)** - Command-line interface documentation
-- **[Crawler Guide](api/crawler.md)** - Understanding the crawling engine
-
-### API Reference
-
-Complete API documentation auto-generated from source code docstrings. See the **[API Overview](api/overview.md)** for a full module listing.
-
-### Development
-
-For contributors and developers:
-
-- **Architecture** - System design and implementation
-- **Contributing** - How to contribute to the project
-- **Testing** - Running tests and type checking
-
-## Use Cases
-
-- Offline documentation mirrors with relative links and preserved assets
-- Documentation archival for compliance and auditing
-- Legacy HTML documentation conversion to Markdown format
-- Custom documentation processing pipelines with configurable output structure
-
-## Requirements
-
-- Python 3.12 or higher
-- [uv](https://github.com/astral-sh/uv) (recommended) or pip
+---
 
 ## License
 
 This project is currently unlicensed. Please contact the maintainer for licensing information.
-
-## Core Dependencies
-
-- [httpx](https://www.python-httpx.org/) 0.28+ - HTTP/2 async client for page fetching
-- [Pydantic](https://docs.pydantic.dev/) 2.9+ - YAML config validation with type coercion
-- [Typer](https://typer.tiangolo.com/) 0.15+ - CLI argument parsing and command routing
-- [Rich](https://rich.readthedocs.io/) 14+ - Terminal progress bars and formatted output
-- [markdownify](https://github.com/matthewwithanm/python-markdownify) 0.14+ - HTML to Markdown parser
-- [lxml](https://lxml.de/) 5.3+ - Fast HTML parsing for link extraction
