@@ -106,6 +106,7 @@ docs = [
     "mkdocs-material>=9.5.0",
     "mkdocstrings[python]>=0.24.0",
     "pymdown-extensions>=10.7.0",
+    "ruff>=0.1.0",
 ]
 js = [
     "playwright>=1.40.0",

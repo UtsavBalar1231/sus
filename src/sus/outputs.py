@@ -170,12 +170,13 @@ class OutputManager:
             Markdown with rewritten links
 
         Rewrites two types of links:
-        1. Internal doc links: [text](https://example.com/doc/page) → [text](../page.md)
-        2. Asset links: ![alt](https://example.com/img/pic.png) → ![alt](../../assets/img/pic.png)
+
+        1. Internal doc urls: `[text](http://example.com/doc/page)` → `[text](../page.md)`
+        2. Asset urls: `![alt](http://example.com/img/pic.png)` → `![alt](../../assets/img/pic.png)`
 
         Logic:
         1. Calculate source file path from URL
-        2. Find all markdown links: [text](url) and ![alt](url)
+        2. Find all markdown links: `[text](url)` and `![alt](url)`
         3. For each link:
            - If internal doc link (same domain, under allowed paths):
              * Calculate target doc path
@@ -238,7 +239,7 @@ class OutputManager:
             # Not an internal doc link, keep original
             return match.group(0)
 
-        # Replace markdown links: [text](url)
+        # Replace markdown links: `[text](url)`
         # Negative lookbehind to exclude image links (which start with !)
         markdown = re.sub(r"(?<!!)\[([^\]]+)\]\(([^\)]+)\)", replace_link, markdown)
 
@@ -285,7 +286,7 @@ class OutputManager:
             # Not an asset link, keep original
             return match.group(0)
 
-        # Replace markdown images: ![alt](url)
+        # Replace markdown images: `![alt](url)`
         markdown = re.sub(r"!\[([^\]]*)\]\(([^\)]+)\)", replace_image, markdown)
 
         return markdown
@@ -298,7 +299,7 @@ class OutputManager:
             to_path: Target file path (absolute)
 
         Returns:
-            Relative path (e.g., "../../other/page.md")
+            Relative path (e.g., `"../../other/page.md"`)
 
         Implementation:
         - Calculate depth difference between files

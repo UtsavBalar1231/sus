@@ -38,11 +38,13 @@ class SusMarkdownConverter(MarkdownConverter):
             **kwargs: Additional arguments from parent class (e.g., convert_as_inline)
 
         Returns:
-            Markdown image syntax: ![alt](src)
+            Markdown image syntax: `![alt](src)`
 
         Examples:
+            ```
             <img src="logo.png" alt="Company Logo"> → ![Company Logo](logo.png)
             <img src="icon.png"> → ![](icon.png)
+            ```
         """
         src = el.get("src", "")
         alt = el.get("alt", "")

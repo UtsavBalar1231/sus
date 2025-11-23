@@ -317,8 +317,8 @@ def init(
             },
             "crawling": {
                 "delay_between_requests": 0.5,
-                "global_concurrent_requests": 10,
-                "per_domain_concurrent_requests": 2,
+                "global_concurrent_requests": 25,
+                "per_domain_concurrent_requests": 5,
             },
             "output": {
                 "base_dir": "output",
