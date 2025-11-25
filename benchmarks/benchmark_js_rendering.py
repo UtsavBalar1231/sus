@@ -25,6 +25,7 @@ from sus.crawler import Crawler
 
 PLAYWRIGHT_AVAILABLE = importlib.util.find_spec("playwright") is not None
 
+
 def get_memory_usage_mb() -> float:
     """Get current process memory usage in MB."""
     process = psutil.Process()
@@ -74,7 +75,7 @@ async def benchmark_http_crawling(num_pages: int) -> dict[str, float]:
     print(f"  Time taken: {elapsed:.2f}s")
     print(f"  Throughput: {throughput:.2f} pages/sec")
     print(f"  Memory delta: {mem_delta:.2f} MB")
-    print(f"  Memory/page: {mem_delta/pages_processed if pages_processed > 0 else 0:.2f} MB")
+    print(f"  Memory/page: {mem_delta / pages_processed if pages_processed > 0 else 0:.2f} MB")
 
     return {
         "pages": pages_processed,
@@ -138,7 +139,7 @@ async def benchmark_js_rendering(num_pages: int, pool_size: int) -> dict[str, fl
     print(f"  Time taken: {elapsed:.2f}s")
     print(f"  Throughput: {throughput:.2f} pages/sec")
     print(f"  Memory delta: {mem_delta:.2f} MB")
-    print(f"  Memory/page: {mem_delta/pages_processed if pages_processed > 0 else 0:.2f} MB")
+    print(f"  Memory/page: {mem_delta / pages_processed if pages_processed > 0 else 0:.2f} MB")
     print(f"  Context pool size: {pool_size}")
 
     return {
@@ -186,9 +187,7 @@ async def benchmark_pool_size_comparison(num_pages: int) -> None:
 
 async def main() -> None:
     """Run all benchmarks."""
-    parser = argparse.ArgumentParser(
-        description="Benchmark JavaScript rendering performance"
-    )
+    parser = argparse.ArgumentParser(description="Benchmark JavaScript rendering performance")
     parser.add_argument(
         "--pages",
         type=int,

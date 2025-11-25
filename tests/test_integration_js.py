@@ -58,7 +58,9 @@ async def test_simple_spa_rendering(simple_spa_path: str) -> None:
             start_urls=[simple_spa_path],
             allowed_domains=[""],  # file:// URLs have empty domain
         ),
-        crawling=CrawlingRules(javascript=JavaScriptConfig(enabled=True, wait_for="domcontentloaded"), max_pages=1),
+        crawling=CrawlingRules(
+            javascript=JavaScriptConfig(enabled=True, wait_for="domcontentloaded"), max_pages=1
+        ),
     )
 
     crawler = Crawler(config)
@@ -89,7 +91,12 @@ async def test_react_like_spa_delayed_rendering(react_like_spa_path: str) -> Non
     config = SusConfig(
         name="test",
         site=SiteConfig(start_urls=[react_like_spa_path], allowed_domains=[""]),
-        crawling=CrawlingRules(javascript=JavaScriptConfig(enabled=True, wait_for="networkidle", wait_timeout_ms= 10000), max_pages=1),
+        crawling=CrawlingRules(
+            javascript=JavaScriptConfig(
+                enabled=True, wait_for="networkidle", wait_timeout_ms=10000
+            ),
+            max_pages=1,
+        ),
     )
 
     crawler = Crawler(config)
@@ -235,7 +242,12 @@ async def test_network_idle_spa_multiple_requests(httpserver: HTTPServer) -> Non
     config = SusConfig(
         name="test",
         site=SiteConfig(start_urls=[spa_url], allowed_domains=["localhost"]),
-        crawling=CrawlingRules(javascript=JavaScriptConfig(enabled=True, wait_for="networkidle", wait_timeout_ms= 10000), max_pages=1),
+        crawling=CrawlingRules(
+            javascript=JavaScriptConfig(
+                enabled=True, wait_for="networkidle", wait_timeout_ms=10000
+            ),
+            max_pages=1,
+        ),
     )
 
     crawler = Crawler(config)
@@ -314,7 +326,9 @@ async def test_spa_vs_http_content_difference(httpserver: HTTPServer) -> None:
     config_js = SusConfig(
         name="test",
         site=SiteConfig(start_urls=[spa_url], allowed_domains=["localhost"]),
-        crawling=CrawlingRules(javascript=JavaScriptConfig(enabled=True, wait_for="domcontentloaded"), max_pages=1),
+        crawling=CrawlingRules(
+            javascript=JavaScriptConfig(enabled=True, wait_for="domcontentloaded"), max_pages=1
+        ),
     )
 
     crawler_js = Crawler(config_js)
@@ -339,11 +353,14 @@ async def test_multiple_pages_context_reuse(simple_spa_path: str, react_like_spa
     config = SusConfig(
         name="test",
         site=SiteConfig(start_urls=[simple_spa_path, react_like_spa_path], allowed_domains=[""]),
-        crawling=CrawlingRules(javascript=JavaScriptConfig(
+        crawling=CrawlingRules(
+            javascript=JavaScriptConfig(
                 enabled=True,
                 wait_for="networkidle",
-                context_pool_size= 2,
-            ), max_pages=2),
+                context_pool_size=2,
+            ),
+            max_pages=2,
+        ),
     )
 
     crawler = Crawler(config)
@@ -375,7 +392,9 @@ async def test_wait_strategy_domcontentloaded_fast(simple_spa_path: str) -> None
     config = SusConfig(
         name="test",
         site=SiteConfig(start_urls=[simple_spa_path], allowed_domains=[""]),
-        crawling=CrawlingRules(javascript=JavaScriptConfig(enabled=True, wait_for="domcontentloaded"), max_pages=1),
+        crawling=CrawlingRules(
+            javascript=JavaScriptConfig(enabled=True, wait_for="domcontentloaded"), max_pages=1
+        ),
     )
 
     crawler = Crawler(config)
@@ -395,11 +414,14 @@ async def test_custom_viewport_size(simple_spa_path: str) -> None:
     config = SusConfig(
         name="test",
         site=SiteConfig(start_urls=[simple_spa_path], allowed_domains=[""]),
-        crawling=CrawlingRules(javascript=JavaScriptConfig(
+        crawling=CrawlingRules(
+            javascript=JavaScriptConfig(
                 enabled=True,
-                viewport_width= 375,  # Mobile viewport
-                viewport_height= 667,
-            ), max_pages=1),
+                viewport_width=375,  # Mobile viewport
+                viewport_height=667,
+            ),
+            max_pages=1,
+        ),
     )
 
     crawler = Crawler(config)
@@ -418,10 +440,13 @@ async def test_custom_user_agent(simple_spa_path: str) -> None:
     config = SusConfig(
         name="test",
         site=SiteConfig(start_urls=[simple_spa_path], allowed_domains=[""]),
-        crawling=CrawlingRules(javascript=JavaScriptConfig(
+        crawling=CrawlingRules(
+            javascript=JavaScriptConfig(
                 enabled=True,
-                user_agent_override= "TestBot/1.0",
-            ), max_pages=1),
+                user_agent_override="TestBot/1.0",
+            ),
+            max_pages=1,
+        ),
     )
 
     crawler = Crawler(config)
@@ -440,8 +465,13 @@ async def test_invalid_url_handling() -> None:
     """Test graceful handling of invalid URLs with JS rendering."""
     config = SusConfig(
         name="test",
-        site=SiteConfig(start_urls=["https://this-domain-definitely-does-not-exist-12345.com"], allowed_domains=["this-domain-definitely-does-not-exist-12345.com"]),
-        crawling=CrawlingRules(javascript=JavaScriptConfig(enabled=True, wait_timeout_ms= 5000), max_pages=1),
+        site=SiteConfig(
+            start_urls=["https://this-domain-definitely-does-not-exist-12345.com"],
+            allowed_domains=["this-domain-definitely-does-not-exist-12345.com"],
+        ),
+        crawling=CrawlingRules(
+            javascript=JavaScriptConfig(enabled=True, wait_timeout_ms=5000), max_pages=1
+        ),
     )
 
     crawler = Crawler(config)
@@ -486,8 +516,13 @@ async def test_browser_cleanup_on_error(simple_spa_path: str) -> None:
     """Test browser cleanup happens even when errors occur."""
     config = SusConfig(
         name="test",
-        site=SiteConfig(start_urls=[simple_spa_path, "https://invalid-url-for-error.test"], allowed_domains=["", "invalid-url-for-error.test"]),
-        crawling=CrawlingRules(javascript=JavaScriptConfig(enabled=True, wait_timeout_ms= 3000), max_pages=2),
+        site=SiteConfig(
+            start_urls=[simple_spa_path, "https://invalid-url-for-error.test"],
+            allowed_domains=["", "invalid-url-for-error.test"],
+        ),
+        crawling=CrawlingRules(
+            javascript=JavaScriptConfig(enabled=True, wait_timeout_ms=3000), max_pages=2
+        ),
     )
 
     crawler = Crawler(config)
@@ -537,7 +572,9 @@ async def test_asset_extraction_from_js_rendered_content(react_like_spa_path: st
     config = SusConfig(
         name="test",
         site=SiteConfig(start_urls=[react_like_spa_path], allowed_domains=[""]),
-        crawling=CrawlingRules(javascript=JavaScriptConfig(enabled=True, wait_for="networkidle"), max_pages=1),
+        crawling=CrawlingRules(
+            javascript=JavaScriptConfig(enabled=True, wait_for="networkidle"), max_pages=1
+        ),
     )
 
     crawler = Crawler(config)
@@ -573,7 +610,10 @@ async def test_context_pool_concurrent_usage(
     """Test context pool handles concurrent page fetches efficiently."""
     config = SusConfig(
         name="test",
-        site=SiteConfig(start_urls=[simple_spa_path, react_like_spa_path, network_idle_spa_path], allowed_domains=[""]),
+        site=SiteConfig(
+            start_urls=[simple_spa_path, react_like_spa_path, network_idle_spa_path],
+            allowed_domains=[""],
+        ),
         crawling=CrawlingRules(
             javascript=JavaScriptConfig(
                 enabled=True,

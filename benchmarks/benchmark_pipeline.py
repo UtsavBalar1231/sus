@@ -334,9 +334,7 @@ def main() -> None:
         default=[2, 5, 10],
         help="Worker counts to test (default: 2 5 10)",
     )
-    parser.add_argument(
-        "--output", type=Path, default=None, help="Save results to JSON file"
-    )
+    parser.add_argument("--output", type=Path, default=None, help="Save results to JSON file")
 
     args = parser.parse_args()
 

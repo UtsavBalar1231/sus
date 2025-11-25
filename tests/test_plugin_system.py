@@ -14,7 +14,7 @@ from sus.plugins import PluginHook
 from sus.plugins.manager import PluginManager
 
 
-class TestPluginProtocol(Protocol):
+class PluginTestProtocol(Protocol):
     """Protocol for test plugins with tracking attributes."""
 
     pre_crawl_called: bool
@@ -211,7 +211,7 @@ async def test_invoke_pre_crawl_hook() -> None:
     mock_config = {"test": "config"}
     await manager.invoke_hook(PluginHook.PRE_CRAWL, config=mock_config)
 
-    test_plugin = cast("TestPluginProtocol", manager.plugins[0])
+    test_plugin = cast("PluginTestProtocol", manager.plugins[0])
     assert test_plugin.pre_crawl_called is True
 
 
@@ -229,7 +229,7 @@ async def test_invoke_post_fetch_hook() -> None:
         status_code=200,
     )
 
-    test_plugin = cast("TestPluginProtocol", manager.plugins[0])
+    test_plugin = cast("PluginTestProtocol", manager.plugins[0])
     assert len(test_plugin.post_fetch_calls) == 1
     assert test_plugin.post_fetch_calls[0]["url"] == "https://example.com"
     assert test_plugin.post_fetch_calls[0]["status_code"] == 200
@@ -264,7 +264,7 @@ async def test_invoke_post_save_hook() -> None:
         content_type="markdown",
     )
 
-    test_plugin = cast("TestPluginProtocol", manager.plugins[0])
+    test_plugin = cast("PluginTestProtocol", manager.plugins[0])
     assert len(test_plugin.post_save_calls) == 1
     assert test_plugin.post_save_calls[0]["file_path"] == "/path/to/file.md"
 
@@ -278,7 +278,7 @@ async def test_invoke_post_crawl_hook() -> None:
 
     await manager.invoke_hook(PluginHook.POST_CRAWL, stats={"pages": 10})
 
-    test_plugin = cast("TestPluginProtocol", manager.plugins[0])
+    test_plugin = cast("PluginTestProtocol", manager.plugins[0])
     assert test_plugin.post_crawl_called is True
 
 
@@ -402,7 +402,7 @@ async def test_multiple_hook_invocations() -> None:
         status_code=200,
     )
 
-    test_plugin = cast("TestPluginProtocol", manager.plugins[0])
+    test_plugin = cast("PluginTestProtocol", manager.plugins[0])
     assert len(test_plugin.post_fetch_calls) == 2
     assert test_plugin.post_fetch_calls[0]["url"] == "https://example.com/page1"
     assert test_plugin.post_fetch_calls[1]["url"] == "https://example.com/page2"

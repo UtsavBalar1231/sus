@@ -115,7 +115,7 @@ def main() -> None:
     console.print(table)
 
     # Performance targets
-    if results['pages_per_sec'] < 15.0:
+    if results["pages_per_sec"] < 15.0:
         console.print("[yellow][WARN] Warning: Throughput below target (15 pages/sec)[/]")
     else:
         console.print("[green][OK] Throughput meets target![/]")

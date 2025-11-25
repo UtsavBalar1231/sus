@@ -214,7 +214,9 @@ def test_filter_dangerous_schemes_malformed(url: str) -> None:
         ),
     ],
 )
-def test_handle_query_parameters(url: str, strategy: Literal["strip", "preserve"], expected: str) -> None:
+def test_handle_query_parameters(
+    url: str, strategy: Literal["strip", "preserve"], expected: str
+) -> None:
     """Test query parameter handling with strip/preserve strategies."""
     assert URLNormalizer.handle_query_parameters(url, strategy) == expected
 

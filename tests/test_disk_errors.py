@@ -291,8 +291,9 @@ async def test_asset_downloader_continues_on_disk_errors_integration() -> None:
             return original_open(*args, **kwargs)
 
         # Patch and download
-        with patch.object(mock_client, "get", new=AsyncMock(side_effect=mock_get)), patch(
-            "aiofiles.open", side_effect=mock_open_asset_error
+        with (
+            patch.object(mock_client, "get", new=AsyncMock(side_effect=mock_get)),
+            patch("aiofiles.open", side_effect=mock_open_asset_error),
         ):
             stats = await asset_downloader.download_all(assets)
 

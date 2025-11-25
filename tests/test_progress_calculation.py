@@ -91,14 +91,14 @@ class TestProgressCalculation:
             known_total = max(known_total, pages_crawled)
 
             # Total should never decrease
-            assert (
-                known_total >= prev_total
-            ), f"Total should not decrease: {known_total} < {prev_total}"
+            assert known_total >= prev_total, (
+                f"Total should not decrease: {known_total} < {prev_total}"
+            )
 
             # Total should be at least the expected
-            assert (
-                known_total >= expected_min_total
-            ), f"Total {known_total} should be >= {expected_min_total}"
+            assert known_total >= expected_min_total, (
+                f"Total {known_total} should be >= {expected_min_total}"
+            )
 
             prev_total = known_total
 
@@ -150,9 +150,7 @@ class TestProgressCalculation:
         # Note: Without tracking previous total across iterations, total CAN decrease
         # but the max() guard prevents it from dropping below pages_crawled
 
-        assert (
-            known_total_2 >= pages_crawled_2
-        ), "Total should always be >= pages_crawled"
+        assert known_total_2 >= pages_crawled_2, "Total should always be >= pages_crawled"
 
     def test_initial_progress_uses_start_urls_count(self, mock_config: SusConfig) -> None:
         """Initial progress bar should use len(start_urls) as estimate."""
