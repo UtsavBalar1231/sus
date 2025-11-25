@@ -126,6 +126,32 @@ def scrape(
             sus_config.crawling.max_pages = max_pages
             console.print(f"[yellow]Max pages limit set:[/yellow] {max_pages}")
 
+        # Validate --resume requires checkpoint.enabled
+        if resume and not sus_config.crawling.checkpoint.enabled:
+            console.print(
+                "[bold red]Error:[/] --resume requires checkpoint.enabled in config.\n"
+                "Add this to your config file:\n"
+                "  crawling:\n"
+                "    checkpoint:\n"
+                "      enabled: true"
+            )
+            raise typer.Exit(code=1)
+
+        # Validate conflicting options
+        if resume and reset_checkpoint:
+            console.print(
+                "[bold red]Error:[/] --resume and --reset-checkpoint are mutually exclusive.\n"
+                "Use --resume to continue from checkpoint, or --reset-checkpoint to start fresh."
+            )
+            raise typer.Exit(code=1)
+
+        if dry_run and resume:
+            console.print(
+                "[bold red]Error:[/] --dry-run and --resume are mutually exclusive.\n"
+                "Dry-run mode doesn't write files, so resuming makes no sense."
+            )
+            raise typer.Exit(code=1)
+
         if dry_run:
             console.print("[yellow]Running in dry-run mode (no files will be written)[/yellow]")
 

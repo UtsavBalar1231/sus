@@ -24,8 +24,23 @@ class PathPattern(BaseModel):
     - prefix: Simple prefix matching (e.g., "/docs/")
     """
 
-    pattern: str = Field(..., description="The pattern string to match against URLs")
-    type: Literal["regex", "glob", "prefix"] = Field(..., description="Pattern matching type")
+    pattern: str = Field(
+        ...,
+        description=(
+            "Pattern to match URL paths against. "
+            "For prefix: '/docs/' matches all paths starting with /docs/. "
+            "For glob: '*.html' matches page.html, docs/intro.html. "
+            "For regex: '^/api/v\\d+/' matches /api/v1/, /api/v2/, etc."
+        ),
+    )
+    type: Literal["regex", "glob", "prefix"] = Field(
+        ...,
+        description=(
+            "Pattern type. Use 'prefix' for simple path matching (fastest, most common). "
+            "Use 'glob' for wildcards like *.html, /docs/*. "
+            "Use 'regex' for complex patterns like /api/v\\d+/ or (foo|bar)."
+        ),
+    )
 
     def matches(self, path: str) -> bool:
         """Check if URL path matches this pattern.
@@ -293,31 +308,44 @@ class AuthenticationConfig(BaseModel):
         description="OAuth2 scope (optional)",
     )
 
-    @model_validator(mode='after')
-    def validate_auth_config(self) -> 'AuthenticationConfig':
+    @model_validator(mode="after")
+    def validate_auth_config(self) -> "AuthenticationConfig":
         """Validate cross-field authentication requirements."""
         if not self.enabled:
             return self
 
         # If enabled, auth_type is required
         if self.auth_type is None:
-            raise ValueError("auth_type is required when authentication is enabled")
+            raise ValueError(
+                "auth_type is required when authentication is enabled. "
+                "Add 'auth_type: basic|cookie|header|oauth2' to your config."
+            )
 
         # Validate required fields for each auth type
         if self.auth_type == "basic":
             if not self.username or not self.password:
-                raise ValueError("username and password are required for Basic Auth")
+                raise ValueError(
+                    "username and password are required for Basic Auth. "
+                    "Add 'username' and 'password' fields under 'authentication'."
+                )
         elif self.auth_type == "cookie":
             if not self.cookies:
-                raise ValueError("cookies dict is required for Cookie Auth")
+                raise ValueError(
+                    "cookies dict is required for Cookie Auth. "
+                    "Add 'cookies: {cookie_name: value}' under 'authentication'."
+                )
         elif self.auth_type == "header":
             if not self.headers:
-                raise ValueError("headers dict is required for Header Auth")
+                raise ValueError(
+                    "headers dict is required for Header Auth. "
+                    "Add 'headers: {Authorization: Bearer <token>}' under 'authentication'."
+                )
         elif self.auth_type == "oauth2" and (
             not self.client_id or not self.client_secret or not self.token_url
         ):
             raise ValueError(
-                "client_id, client_secret, and token_url are required for OAuth2"
+                "client_id, client_secret, and token_url are required for OAuth2. "
+                "Add all three fields under 'authentication'."
             )
 
         return self
@@ -514,13 +542,15 @@ class ContentFilteringConfig(BaseModel):
         description="CSS selectors for elements to keep (extract only these, ignore rest)",
     )
 
-    @model_validator(mode='after')
-    def validate_filtering_config(self) -> 'ContentFilteringConfig':
+    @model_validator(mode="after")
+    def validate_filtering_config(self) -> "ContentFilteringConfig":
         """Validate that at least one selector is provided when filtering is enabled."""
         if self.enabled and not self.keep_selectors and not self.remove_selectors:
             raise ValueError(
                 "At least one of keep_selectors or remove_selectors must be provided "
-                "when content filtering is enabled"
+                "when content filtering is enabled. Examples:\n"
+                "  keep_selectors: ['article', 'main']  # Keep only these elements\n"
+                "  remove_selectors: ['nav', 'footer', '.ads']  # Remove these elements"
             )
         return self
 
@@ -656,20 +686,27 @@ class SusConfig(BaseModel):
         that would be invalid in directory names.
         """
         if not v:
-            raise ValueError("name cannot be empty")
+            raise ValueError(
+                "name cannot be empty. Add 'name: my-project' at the top of your config file."
+            )
 
         # Check for invalid characters in directory names
         invalid_chars = set('/\\:*?"<>|')
         if any(char in v for char in invalid_chars):
-            raise ValueError(f"name contains invalid characters for a directory name: {v!r}")
+            raise ValueError(
+                f"name contains invalid characters: {v!r}. "
+                f"Use only letters, numbers, hyphens, and underscores."
+            )
 
         # Check for dangerous names
         if v in (".", ".."):
-            raise ValueError(f"name cannot be '.' or '..': {v!r}")
+            raise ValueError(f"name cannot be '.' or '..': {v!r}. Use a descriptive project name.")
 
         # Check for leading/trailing whitespace
         if v != v.strip():
-            raise ValueError(f"name cannot have leading/trailing whitespace: {v!r}")
+            raise ValueError(
+                f"name cannot have leading/trailing whitespace: {v!r}. Use '{v.strip()}' instead."
+            )
 
         return v
 

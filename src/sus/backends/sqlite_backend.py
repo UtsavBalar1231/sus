@@ -295,7 +295,9 @@ class SQLiteBackend:
     async def save_queue(self, queue: list[tuple[str, str | None]]) -> None:
         """Save pending URL queue to database.
 
-        Replaces existing queue completely.
+        Replaces existing queue completely. Uses explicit transaction to ensure
+        atomicity - either all changes apply or none do (prevents data loss
+        if crash occurs between DELETE and INSERT).
 
         Args:
             queue: List of (url, parent_url) tuples to persist
@@ -303,15 +305,23 @@ class SQLiteBackend:
         if self._conn is None:
             raise RuntimeError("Backend not initialized")
 
-        await self._conn.execute("DELETE FROM queue")
+        # Use explicit transaction for atomicity (data loss prevention)
+        # BEGIN IMMEDIATE acquires write lock immediately, preventing other writers
+        await self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            await self._conn.execute("DELETE FROM queue")
 
-        if queue:
-            await self._conn.executemany(
-                "INSERT INTO queue (position, url, parent_url) VALUES (?, ?, ?)",
-                [(i, url, parent_url) for i, (url, parent_url) in enumerate(queue)],
-            )
+            if queue:
+                await self._conn.executemany(
+                    "INSERT INTO queue (position, url, parent_url) VALUES (?, ?, ?)",
+                    [(i, url, parent_url) for i, (url, parent_url) in enumerate(queue)],
+                )
 
-        await self._conn.commit()
+            await self._conn.commit()
+        except Exception:
+            # Rollback on any error to maintain consistency
+            await self._conn.rollback()
+            raise
 
     async def should_redownload(
         self, url: str, force_redownload_after_days: int | None = None

@@ -3,12 +3,15 @@
 import importlib
 import importlib.util
 import inspect
+import logging
 import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 from sus.plugins import Plugin, PluginHook
+
+logger = logging.getLogger(__name__)
 
 
 class PluginManager:
@@ -57,6 +60,8 @@ class PluginManager:
                     "type": type(e).__name__,
                 }
                 self.errors.append(error_info)
+                # Log immediately so users see loading errors in real-time
+                logger.warning(f"Failed to load plugin {plugin_path}: {e}")
 
     def _load_single_plugin(self, plugin_path: str) -> Plugin | None:
         """Load a single plugin from path.
@@ -107,11 +112,7 @@ class PluginManager:
             for name in module.__all__:
                 if hasattr(module, name):
                     obj = getattr(module, name)
-                    if (
-                        inspect.isclass(obj)
-                        and issubclass(obj, Plugin)
-                        and obj is not Plugin
-                    ):
+                    if inspect.isclass(obj) and issubclass(obj, Plugin) and obj is not Plugin:
                         return obj
 
         # Fallback: scan module for Plugin subclasses
@@ -227,6 +228,9 @@ class PluginManager:
                 if "url" in kwargs:
                     error_info["url"] = kwargs["url"]
                 self.errors.append(error_info)
+                # Log immediately so users see errors in real-time
+                url_info = f" for {kwargs['url']}" if "url" in kwargs else ""
+                logger.warning(f"Plugin '{plugin.name}' failed on {hook.value}{url_info}: {e}")
 
         return result
 

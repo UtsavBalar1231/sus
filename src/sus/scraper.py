@@ -425,6 +425,8 @@ def _create_process_worker(
     assets_task: Any,
     asset_tasks: list[asyncio.Task[Any]],
     checkpoint_path: Path | None,
+    checkpoint_lock: asyncio.Lock,
+    crawler: Crawler,
 ) -> Any:
     """Create a process worker function for the pipeline.
 
@@ -437,11 +439,16 @@ def _create_process_worker(
         assets_task: Assets progress task ID
         asset_tasks: List to append asset download tasks to
         checkpoint_path: Path to checkpoint file (if checkpoint enabled)
+        checkpoint_lock: Lock to coordinate checkpoint saves across workers
+        crawler: Crawler instance for queue snapshot
 
     Returns:
         Async worker function with signature:
             async def worker(worker_id: int, queue: MemoryAwareQueue) -> None
     """
+    # Track pages processed for periodic checkpoint saves
+    # Using a list to allow mutation from inner function
+    pages_since_checkpoint = [0]
 
     async def process_worker(worker_id: int, queue: MemoryAwareQueue[CrawlResult]) -> None:
         """Process worker that consumes CrawlResults from queue.
@@ -482,6 +489,33 @@ def _create_process_worker(
                 if not success and ctx.stats.get("stopped_reason") == "high_memory":
                     queue.task_done()
                     break
+
+                # Periodic checkpoint save in pipeline mode (data loss prevention)
+                if ctx.checkpoint and ctx.config.crawling.checkpoint.enabled and checkpoint_path:
+                    pages_since_checkpoint[0] += 1
+                    checkpoint_interval = ctx.config.crawling.checkpoint.checkpoint_interval_pages
+
+                    if pages_since_checkpoint[0] >= checkpoint_interval:
+                        async with checkpoint_lock:
+                            # Double-check after acquiring lock (another worker may have saved)
+                            if pages_since_checkpoint[0] >= checkpoint_interval:
+                                ctx.checkpoint.queue = await crawler.get_queue_snapshot()
+                                try:
+                                    await ctx.checkpoint.save(checkpoint_path)
+                                except Exception as save_err:
+                                    progress.console.print(
+                                        f"[bold red]CRITICAL: Checkpoint save failed![/]\n"
+                                        f"  Error: {save_err}"
+                                    )
+                                    raise RuntimeError(
+                                        f"Checkpoint save failed: {save_err}. "
+                                        "Stopping to prevent data loss."
+                                    ) from save_err
+                                progress.console.print(
+                                    f"[dim][CHECKPOINT] Pipeline saved at "
+                                    f"{ctx.stats['pages_crawled']} pages[/]"
+                                )
+                                pages_since_checkpoint[0] = 0
 
             finally:
                 # Mark task as done
@@ -527,8 +561,11 @@ async def _initialize_checkpoint(
                 if checkpoint.config_hash != current_config_hash:
                     console = Console()
                     console.print(
-                        "[yellow][WARN] Config changed since last checkpoint - "
-                        "invalidating checkpoint and starting fresh[/]"
+                        "[yellow][WARN] Config file has changed since checkpoint was created.[/]\n"
+                        "  Checkpoint hash: " + checkpoint.config_hash[:8] + "...\n"
+                        "  Current hash:    " + current_config_hash[:8] + "...\n"
+                        "  [dim]Common causes: URL patterns, allowed_domains, or settings.[/]\n"
+                        "  [dim]Starting fresh. Use --reset-checkpoint to confirm.[/]"
                     )
                     await checkpoint.close()
                     checkpoint = None
@@ -753,6 +790,9 @@ async def run_scraper(
             completed=0,
         )
 
+        # Track whether we exited due to an exception (for checkpoint save error handling)
+        had_exception = False
+
         try:
             if config.crawling.pipeline.enabled:
                 progress.console.print(
@@ -773,6 +813,9 @@ async def run_scraper(
                     max_queue_memory_mb=config.crawling.pipeline.max_queue_memory_mb,
                 )
 
+                # Lock to coordinate checkpoint saves across workers
+                checkpoint_lock = asyncio.Lock()
+
                 # Create process worker function
                 process_worker_fn = _create_process_worker(
                     ctx=ctx,
@@ -781,6 +824,8 @@ async def run_scraper(
                     assets_task=assets_task,
                     asset_tasks=asset_tasks,
                     checkpoint_path=checkpoint_path,
+                    checkpoint_lock=checkpoint_lock,
+                    crawler=crawler,
                 )
 
                 # Start workers
@@ -820,7 +865,7 @@ async def run_scraper(
                     )
 
                     if checkpoint and config.crawling.checkpoint.enabled:
-                        checkpoint.queue = crawler.get_queue_snapshot()
+                        checkpoint.queue = await crawler.get_queue_snapshot()
 
                         # Periodically save checkpoint (every N pages)
                         if (
@@ -828,7 +873,17 @@ async def run_scraper(
                             % config.crawling.checkpoint.checkpoint_interval_pages
                             == 0
                         ) and checkpoint_path:
-                            await checkpoint.save(checkpoint_path)
+                            try:
+                                await checkpoint.save(checkpoint_path)
+                            except Exception as save_err:
+                                progress.console.print(
+                                    f"[bold red]CRITICAL: Checkpoint save failed![/]\n"
+                                    f"  Error: {save_err}"
+                                )
+                                raise RuntimeError(
+                                    f"Checkpoint save failed: {save_err}. "
+                                    "Stopping to prevent data loss."
+                                ) from save_err
                             progress.console.print(
                                 f"[dim][CHECKPOINT] Saved at {stats['pages_crawled']} pages[/]"
                             )
@@ -841,21 +896,35 @@ async def run_scraper(
                         break
 
         except KeyboardInterrupt:
+            had_exception = True
             progress.console.print("\n[yellow]Interrupted by user[/]")
         except Exception as e:
+            had_exception = True
             progress.console.print(f"\n[red]Fatal error during crawl: {e}[/]")
             stats["errors"]["fatal"].append({"error": str(e), "type": type(e).__name__})
         finally:
             if checkpoint and config.crawling.checkpoint.enabled and checkpoint_path:
                 try:
-                    checkpoint.queue = crawler.get_queue_snapshot()
+                    checkpoint.queue = await crawler.get_queue_snapshot()
                     await checkpoint.save(checkpoint_path)
                     page_count = await checkpoint.get_page_count()
                     console.print(
                         f"[dim][CHECKPOINT] Final checkpoint saved ({page_count} pages)[/]"
                     )
-                except Exception as e:
-                    console.print(f"[yellow][WARN] Failed to save final checkpoint:[/] {e}")
+                except Exception as checkpoint_err:
+                    # Checkpoint save failure is fatal for data integrity
+                    console.print(
+                        f"[bold red]CRITICAL: Failed to save checkpoint![/]\n"
+                        f"  Path: {checkpoint_path}\n"
+                        f"  Error: {checkpoint_err}\n"
+                        f"  [yellow]Progress since last checkpoint may be lost.[/]"
+                    )
+                    # Only re-raise if there was no prior exception (don't mask it)
+                    if not had_exception:
+                        raise RuntimeError(
+                            f"Checkpoint save failed: {checkpoint_err}. "
+                            "Check disk space and permissions."
+                        ) from checkpoint_err
 
     execution_time = time.time() - start_time
 

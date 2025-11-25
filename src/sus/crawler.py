@@ -192,7 +192,10 @@ class RobotsTxtChecker:
                     logger.debug(f"No robots.txt for {domain} (status {response.status_code})")
             except Exception as e:
                 # On error, default to allowing (graceful degradation)
-                logger.debug(f"Failed to fetch robots.txt for {domain}: {e}")
+                # Warn user since this affects robots.txt compliance
+                logger.warning(
+                    f"Failed to fetch robots.txt for {domain}: {e}. Proceeding without it."
+                )
                 parser = RobotFileParserLookalike()
                 parser.parse([])
                 self._cache[domain] = parser
@@ -236,6 +239,7 @@ class Crawler:
         self.checkpoint = checkpoint
         self.visited: set[str] = set()
         self.queue: asyncio.Queue[tuple[str, str | None]] = asyncio.Queue()  # (url, parent_url)
+        self._queue_lock = asyncio.Lock()  # Protects queue snapshot for checkpoints
         self.stats = CrawlerStats()
 
         self.global_semaphore = asyncio.Semaphore(config.crawling.global_concurrent_requests)
@@ -269,12 +273,16 @@ class Crawler:
                 auth_handler = SusAuth(self.session_manager)
             self.client = create_http_client(self.config, auth_handler)
 
-    def get_queue_snapshot(self) -> list[tuple[str, str | None]]:
+    async def get_queue_snapshot(self) -> list[tuple[str, str | None]]:
         """Get a snapshot of the current crawl queue for checkpoint serialization.
 
         Returns a list copy of all items currently in the queue. This method
         accesses the internal queue state but provides a proper public API
         for checkpoint serialization.
+
+        Uses an async lock to ensure snapshot consistency during concurrent
+        queue operations. While asyncio is single-threaded, the lock makes
+        the synchronization intent explicit.
 
         Note: asyncio.Queue doesn't provide a public API to inspect queue contents
         without modifying it, so we must access the private _queue attribute.
@@ -284,8 +292,9 @@ class Crawler:
         Returns:
             List of (url, parent_url) tuples representing the current queue state
         """
-        # Access private _queue attribute - no public API exists for non-destructive inspection
-        return list(self.queue._queue)  # type: ignore[attr-defined]
+        async with self._queue_lock:
+            # Access private _queue attribute - no public API exists for non-destructive inspection
+            return list(self.queue._queue)  # type: ignore[attr-defined]
 
     async def crawl(self) -> AsyncGenerator[CrawlResult, None]:
         """Crawl pages starting from start_urls.
@@ -527,6 +536,8 @@ class Crawler:
                 self.stats.pages_failed += 1
                 error_type = type(e).__name__
                 self.stats.error_counts[error_type] = self.stats.error_counts.get(error_type, 0) + 1
+                # Log failure to console so users see what's happening
+                logger.warning(f"HTTP error fetching {url}: {error_type}")
                 return None
 
     # ========== JavaScript Rendering ==========
@@ -681,11 +692,11 @@ class Crawler:
                     await page.close()
 
             except Exception as e:
-                # Handle all Playwright errors
+                # Handle all Playwright errors - warn user since JS render failures are significant
                 self.stats.pages_failed += 1
                 error_type = type(e).__name__
                 self.stats.error_counts[error_type] = self.stats.error_counts.get(error_type, 0) + 1
-                logger.debug(f"Failed to render {url}: {error_type}: {e}")
+                logger.warning(f"JS render failed for {url}: {error_type}: {e}")
                 return None
 
             finally:
@@ -711,8 +722,9 @@ class Crawler:
                 }
             """)
             return sorted(set(links))  # Deduplicate and sort
-        except Exception:
-            # If extraction fails, return empty list
+        except Exception as e:
+            # If extraction fails, return empty list but warn user
+            logger.warning(f"JS link extraction failed for {base_url}: {e}")
             return []
 
     async def _extract_assets_js(self, page: Any, base_url: str) -> list[str]:
@@ -750,8 +762,9 @@ class Crawler:
                 }
             """)
             return sorted(set(assets))  # Deduplicate and sort
-        except Exception:
-            # If extraction fails, return empty list
+        except Exception as e:
+            # If extraction fails, return empty list but warn user
+            logger.warning(f"JS asset extraction failed for {base_url}: {e}")
             return []
 
     async def _close_browser(self) -> None:
@@ -902,7 +915,8 @@ class Crawler:
 
             return sorted(assets)  # Sort for deterministic output
 
-        except Exception:
-            # If parsing fails, return empty list
+        except Exception as e:
+            # If parsing fails, return empty list but warn user
             # Don't let asset extraction failures stop the crawl
+            logger.warning(f"Asset extraction failed for {base_url}: {e}")
             return []

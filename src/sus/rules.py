@@ -4,12 +4,15 @@ URL normalization, validation, and rule-based filtering for controlling crawl sc
 URLNormalizer (consistency), RulesEngine (pattern matching), and LinkExtractor (HTML parsing).
 """
 
+import logging
 from typing import TYPE_CHECKING, Literal, cast
 from urllib.parse import urljoin, urlparse, urlunparse
 
 from lxml import html as lxml_html
 
 from sus.config import SusConfig
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from sus.types import LxmlElement
@@ -233,6 +236,7 @@ class RulesEngine:
             True
         """
         if not self._is_allowed_domain(url):
+            logger.debug(f"URL rejected (not in allowed_domains): {url}")
             return False
 
         depth = self._get_depth(url, parent_url)
@@ -240,6 +244,9 @@ class RulesEngine:
             self.config.crawling.depth_limit is not None
             and depth > self.config.crawling.depth_limit
         ):
+            logger.debug(
+                f"URL rejected (depth {depth} > limit {self.config.crawling.depth_limit}): {url}"
+            )
             return False
 
         parsed = urlparse(url)
@@ -247,14 +254,22 @@ class RulesEngine:
 
         for pattern in self.config.crawling.exclude_patterns:
             if pattern.matches(path):
+                logger.debug(f"URL rejected (matched exclude pattern '{pattern.pattern}'): {url}")
                 return False
 
         # If there are no include patterns, accept all (that passed exclude check)
         if not self.config.crawling.include_patterns:
+            logger.debug(f"URL accepted (no include patterns to check): {url}")
             return True
 
         # If there are include patterns, must match at least one
-        return any(pattern.matches(path) for pattern in self.config.crawling.include_patterns)
+        for pattern in self.config.crawling.include_patterns:
+            if pattern.matches(path):
+                logger.debug(f"URL accepted (matched include pattern '{pattern.pattern}'): {url}")
+                return True
+
+        logger.debug(f"URL rejected (no include pattern matched): {url}")
+        return False
 
     def _is_allowed_domain(self, url: str) -> bool:
         """Check if URL domain is in allowed_domains.

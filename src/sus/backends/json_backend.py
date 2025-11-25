@@ -5,6 +5,7 @@ Uses atomic writes (temp file + rename) for crash safety.
 """
 
 import json
+import logging
 import tempfile
 from collections.abc import AsyncIterator
 from dataclasses import asdict
@@ -13,6 +14,8 @@ from pathlib import Path
 import aiofiles
 
 from sus.backends.base import CheckpointMetadata, PageCheckpoint
+
+logger = logging.getLogger(__name__)
 
 CHECKPOINT_VERSION = 1
 
@@ -83,9 +86,17 @@ class JSONBackend:
             queue_data = data.get("queue", [])
             self._queue = [(item[0], item[1]) for item in queue_data]
 
-        except (json.JSONDecodeError, KeyError, TypeError, ValueError, IndexError):
-            # Corrupted checkpoint - start fresh
-            pass
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError, IndexError) as e:
+            # Corrupted checkpoint - warn user and start fresh
+            logger.warning(
+                f"Checkpoint file corrupted or invalid: {self.path}\n"
+                f"  Error: {e}\n"
+                f"  Starting fresh. Use --reset-checkpoint to delete the corrupt file."
+            )
+            # Clear any partial data that may have been loaded
+            self._metadata = None
+            self._pages = {}
+            self._queue = []
 
     async def close(self) -> None:
         """No cleanup needed for JSON backend."""
