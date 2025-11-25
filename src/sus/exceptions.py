@@ -15,3 +15,11 @@ class CrawlError(SusError):
 
 class SitemapError(SusError):
     """Raised when sitemap parsing fails."""
+
+
+class ConversionError(SusError):
+    """Raised when HTML to Markdown conversion fails.
+
+    This includes critical failures like script/style removal that could
+    result in JavaScript code or sensitive data leaking into markdown output.
+    """

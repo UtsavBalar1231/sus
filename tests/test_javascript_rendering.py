@@ -35,8 +35,8 @@ def create_mock_playwright_module(mock_playwright: MagicMock) -> tuple[ModuleTyp
         mock_instance.start = AsyncMock(return_value=mock_playwright)
         return mock_instance
 
-    mock_async_api.async_playwright = mock_async_playwright
-    mock_pw_module.async_api = mock_async_api
+    mock_async_api.async_playwright = mock_async_playwright  # type: ignore[attr-defined]
+    mock_pw_module.async_api = mock_async_api  # type: ignore[attr-defined]
 
     return mock_pw_module, mock_async_api
 
@@ -358,9 +358,7 @@ async def test_create_browser_context_javascript_disabled() -> None:
     config = SusConfig(
         name="test",
         site=SiteConfig(start_urls=["https://example.com"], allowed_domains=["example.com"]),
-        crawling=CrawlingRules(
-            javascript=JavaScriptConfig(enabled=True, javascript_enabled=False)
-        ),
+        crawling=CrawlingRules(javascript=JavaScriptConfig(enabled=True, javascript_enabled=False)),
     )
     crawler = Crawler(config)
 

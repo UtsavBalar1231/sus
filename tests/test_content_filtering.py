@@ -1,7 +1,12 @@
 """Unit tests for Content Filtering in ContentConverter."""
 
+from unittest.mock import patch
+
+import pytest
+
 from sus.config import ContentFilteringConfig, MarkdownConfig
 from sus.converter import ContentConverter
+from sus.exceptions import ConversionError
 
 
 def test_content_filtering_disabled() -> None:
@@ -282,7 +287,11 @@ def test_content_filtering_malformed_html_graceful_fallback() -> None:
 
 
 def test_content_filtering_empty_html() -> None:
-    """Test filtering on empty HTML."""
+    """Test filtering on empty HTML raises ConversionError.
+
+    Empty HTML cannot be safely processed since we cannot verify
+    script/style removal occurred successfully.
+    """
     config = MarkdownConfig(
         content_filtering=ContentFilteringConfig(
             enabled=True,
@@ -293,11 +302,9 @@ def test_content_filtering_empty_html() -> None:
 
     html = ""
 
-    # Should not raise error
-    result = converter.convert(html, "https://example.com", "Test")
-
-    # Should handle gracefully
-    assert isinstance(result, str)
+    # Empty HTML should raise ConversionError (cannot safely process)
+    with pytest.raises(ConversionError):
+        converter.convert(html, "https://example.com", "Test")
 
 
 def test_content_filtering_with_frontmatter() -> None:
@@ -471,3 +478,119 @@ def test_content_filtering_descendant_selectors() -> None:
 
     # Parent elements might remain (only descendants removed)
     # Note: This behavior depends on lxml's remove() implementation
+
+
+def test_script_removal_removes_javascript_content() -> None:
+    """Test that script tags and their content are removed from HTML."""
+    config = MarkdownConfig()
+    converter = ContentConverter(config)
+
+    html = """
+    <html>
+        <head>
+            <script>
+                const API_KEY = "secret-key-12345";
+                fetch('https://example.com/api');
+            </script>
+        </head>
+        <body>
+            <h1>Content</h1>
+            <script type="text/javascript">
+                document.write("injected");
+            </script>
+        </body>
+    </html>
+    """
+
+    result = converter.convert(html, "https://example.com", "Test")
+
+    # JavaScript content should NOT appear in markdown
+    assert "API_KEY" not in result
+    assert "secret-key" not in result
+    assert "fetch" not in result
+    assert "injected" not in result
+    assert "document.write" not in result
+
+    # Real content should remain
+    assert "Content" in result
+
+
+def test_style_removal_removes_css_content() -> None:
+    """Test that style tags and their content are removed from HTML."""
+    config = MarkdownConfig()
+    converter = ContentConverter(config)
+
+    html = """
+    <html>
+        <head>
+            <style>
+                body { background: red; }
+                .secret { display: none; }
+            </style>
+        </head>
+        <body>
+            <h1>Content</h1>
+            <style>
+                h1 { color: blue; }
+            </style>
+        </body>
+    </html>
+    """
+
+    result = converter.convert(html, "https://example.com", "Test")
+
+    # CSS content should NOT appear in markdown
+    assert "background: red" not in result
+    assert ".secret" not in result
+    assert "color: blue" not in result
+
+    # Real content should remain
+    assert "Content" in result
+
+
+def test_script_removal_failure_raises_conversion_error() -> None:
+    """Test that script removal failure raises ConversionError (security critical).
+
+    This is a CRITICAL security test. If script removal fails, we must NOT
+    return the original HTML because it could contain API keys, secrets,
+    or tracking code that would leak into the markdown output.
+    """
+    config = MarkdownConfig()
+    converter = ContentConverter(config)
+
+    # Mock lxml.html.fromstring to raise an exception
+    with patch("sus.converter.lxml_html.fromstring") as mock_fromstring:
+        mock_fromstring.side_effect = Exception("Parsing failed")
+
+        # Should raise ConversionError, NOT return original HTML
+        with pytest.raises(ConversionError) as exc_info:
+            converter._remove_scripts_and_styles("<html><script>secret</script></html>")
+
+        assert "Script/style removal failed" in str(exc_info.value)
+
+
+def test_noscript_removal() -> None:
+    """Test that noscript tags are removed from HTML."""
+    config = MarkdownConfig()
+    converter = ContentConverter(config)
+
+    html = """
+    <html>
+        <body>
+            <h1>Content</h1>
+            <noscript>
+                <p>JavaScript is required for this site.</p>
+                <img src="tracking.gif" alt="tracking pixel">
+            </noscript>
+        </body>
+    </html>
+    """
+
+    result = converter.convert(html, "https://example.com", "Test")
+
+    # noscript content should NOT appear in markdown
+    assert "JavaScript is required" not in result
+    assert "tracking" not in result
+
+    # Real content should remain
+    assert "Content" in result

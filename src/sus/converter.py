@@ -16,6 +16,7 @@ from lxml.html import HtmlElement
 from markdownify import MarkdownConverter
 
 from sus.config import MarkdownConfig
+from sus.exceptions import ConversionError
 
 logger = logging.getLogger(__name__)
 
@@ -204,7 +205,7 @@ class ContentConverter:
         html = self._remove_scripts_and_styles(html)
 
         if self.config.content_filtering.enabled:
-            html = self._filter_content(html)
+            html = self._filter_content(html, url)
 
         markdown = self.converter.convert(html)
 
@@ -294,10 +295,13 @@ class ContentConverter:
             return cast("str", result)
 
         except Exception as e:
-            logger.warning(
-                f"Failed to remove script/style elements: {e}. Returning original HTML."
-            )
-            return html
+            # CRITICAL: Never return original HTML - it may contain scripts with
+            # API keys, secrets, or tracking code that would leak into markdown
+            logger.error(f"Failed to remove script/style elements: {e}")
+            raise ConversionError(
+                f"Script/style removal failed: {e}. "
+                "Cannot safely convert HTML to markdown without removing scripts."
+            ) from e
 
     def _clean_markdown(self, markdown: str) -> str:
         """Clean markdown output.
@@ -399,7 +403,7 @@ class ContentConverter:
 
         return f"---\n{yaml_content}---\n\n{markdown}"
 
-    def _filter_content(self, html: str) -> str:
+    def _filter_content(self, html: str, url: str) -> str:
         """Filter HTML content using CSS selectors.
 
         Applies content filtering based on configuration:
@@ -409,6 +413,7 @@ class ContentConverter:
 
         Args:
             html: HTML content to filter
+            url: Source URL (for error reporting)
 
         Returns:
             Filtered HTML content
@@ -423,7 +428,7 @@ class ContentConverter:
             ...     "<html><body><nav>Nav</nav><main>Content</main>"
             ...     "<footer>Footer</footer></body></html>"
             ... )
-            >>> filtered = converter._filter_content(html)
+            >>> filtered = converter._filter_content(html, "https://example.com")
             >>> "Nav" not in filtered
             True
             >>> "Content" in filtered
@@ -483,5 +488,5 @@ class ContentConverter:
             return html
 
         except Exception as e:
-            logger.warning(f"Content filtering failed: {e}. Returning original HTML.")
+            logger.warning(f"Content filtering failed for {url}: {e}. Returning original HTML.")
             return html

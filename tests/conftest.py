@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator, Generator
 from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 import pytest
@@ -251,7 +251,7 @@ def create_config_with_javascript(
     name: str = "test-js-site",
     start_urls: list[str] | None = None,
     *,
-    wait_for: str = "networkidle",
+    wait_for: Literal["domcontentloaded", "load", "networkidle"] = "networkidle",
     wait_timeout_ms: int = 30000,
     output_dir: Path | None = None,
 ) -> SusConfig:
@@ -297,7 +297,7 @@ def create_config_with_checkpoint(
     start_urls: list[str] | None = None,
     *,
     checkpoint_file: Path | None = None,
-    backend: str = "json",
+    backend: Literal["json", "sqlite"] = "json",
     output_dir: Path | None = None,
 ) -> SusConfig:
     """Create SusConfig with checkpoint/resume enabled.

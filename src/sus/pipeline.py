@@ -56,7 +56,7 @@ class MemoryAwareQueue[T]:
         >>> result = await queue.get()
     """
 
-    def __init__(self, maxsize: int = 0, max_memory_mb: int = 500) -> None:
+    def __init__(self, maxsize: int = 0, max_memory_mb: float = 500) -> None:
         """Initialize memory-aware queue.
 
         Args:
