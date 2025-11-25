@@ -1,11 +1,11 @@
 # Pre-commit hooks for code quality automation
 # See https://pre-commit.com for more information
 default_language_version:
-  python: python3.12
+  python: python3.13
 repos:
   # Ruff - Fast Python linter and formatter
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.5
+    rev: v0.14.6
     hooks:
       # Run the linter
       - id: ruff
@@ -14,20 +14,16 @@ repos:
       # Run the formatter
       - id: ruff-format
         types_or: [python, pyi]
-  # Mypy - Static type checker (strict mode, aligned with pyproject.toml)
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.2
+  # Mypy - Use local hook to leverage project venv with all dependencies
+  - repo: local
     hooks:
       - id: mypy
-        args: [--strict, --config-file=pyproject.toml]
-        additional_dependencies:
-          - types-pyyaml>=6.0.0
-          - types-psutil>=5.9.0
-          - types-aiofiles>=25.1.0
-          - lxml-stubs>=0.5.1
-          - pydantic>=2.9
-          - httpx>=0.24.0
+        name: mypy
+        entry: uv run mypy --strict src tests
+        language: system
+        types: [python]
         files: ^(src|tests)/
+        pass_filenames: false
   # Additional useful hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
