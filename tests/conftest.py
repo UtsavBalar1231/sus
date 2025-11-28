@@ -520,6 +520,7 @@ def create_crawl_result(
 
     return CrawlResult(
         url=url,
+        final_url=url,  # For tests, assume no redirect (final_url == url)
         html=html,
         status_code=status_code,
         content_type=content_type,

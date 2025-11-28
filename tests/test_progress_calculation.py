@@ -36,6 +36,7 @@ def mock_result() -> CrawlResult:
     """Create a mock CrawlResult for testing."""
     return CrawlResult(
         url="https://example.com/page1",
+        final_url="https://example.com/page1",
         html="<html><body>Test</body></html>",
         status_code=200,
         content_type="text/html",
@@ -203,6 +204,7 @@ class TestProgressIntegration:
         mock_results = [
             CrawlResult(
                 url="https://example.com/page1",
+                final_url="https://example.com/page1",
                 html="<html><body>Page 1</body></html>",
                 status_code=200,
                 content_type="text/html",
@@ -213,6 +215,7 @@ class TestProgressIntegration:
             ),
             CrawlResult(
                 url="https://example.com/page2",
+                final_url="https://example.com/page2",
                 html="<html><body>Page 2</body></html>",
                 status_code=200,
                 content_type="text/html",
@@ -223,6 +226,7 @@ class TestProgressIntegration:
             ),
             CrawlResult(
                 url="https://example.com/page3",
+                final_url="https://example.com/page3",
                 html="<html><body>Page 3</body></html>",
                 status_code=200,
                 content_type="text/html",

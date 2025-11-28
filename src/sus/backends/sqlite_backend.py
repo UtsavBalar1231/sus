@@ -83,7 +83,9 @@ class SQLiteBackend:
                 content_hash TEXT NOT NULL,
                 last_scraped TEXT NOT NULL,
                 status_code INTEGER NOT NULL,
-                file_path TEXT NOT NULL
+                file_path TEXT NOT NULL,
+                etag TEXT,
+                last_modified TEXT
             );
 
             CREATE INDEX IF NOT EXISTS idx_pages_last_scraped
@@ -96,7 +98,26 @@ class SQLiteBackend:
             );
         """
         )
+
+        # Migrate existing tables: add etag/last_modified columns if missing
+        await self._migrate_schema()
+
         await self._conn.commit()
+
+    async def _migrate_schema(self) -> None:
+        """Add new columns to existing tables (schema migration)."""
+        if self._conn is None:
+            return
+
+        # Check if etag column exists
+        cursor = await self._conn.execute("PRAGMA table_info(pages)")
+        columns = {row[1] for row in await cursor.fetchall()}
+
+        if "etag" not in columns:
+            await self._conn.execute("ALTER TABLE pages ADD COLUMN etag TEXT")
+
+        if "last_modified" not in columns:
+            await self._conn.execute("ALTER TABLE pages ADD COLUMN last_modified TEXT")
 
     async def load_metadata(self) -> CheckpointMetadata | None:
         """Load checkpoint metadata from database.
@@ -168,7 +189,7 @@ class SQLiteBackend:
 
         cursor = await self._conn.execute(
             """
-            SELECT url, content_hash, last_scraped, status_code, file_path
+            SELECT url, content_hash, last_scraped, status_code, file_path, etag, last_modified
             FROM pages
             WHERE url = ?
             """,
@@ -185,6 +206,8 @@ class SQLiteBackend:
             last_scraped=row["last_scraped"],
             status_code=row["status_code"],
             file_path=row["file_path"],
+            etag=row["etag"],
+            last_modified=row["last_modified"],
         )
 
     async def add_page(self, page: PageCheckpoint) -> None:
@@ -201,8 +224,8 @@ class SQLiteBackend:
         await self._conn.execute(
             """
             INSERT OR REPLACE INTO pages
-                (url, content_hash, last_scraped, status_code, file_path)
-            VALUES (?, ?, ?, ?, ?)
+                (url, content_hash, last_scraped, status_code, file_path, etag, last_modified)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 page.url,
@@ -210,6 +233,8 @@ class SQLiteBackend:
                 page.last_scraped,
                 page.status_code,
                 page.file_path,
+                page.etag,
+                page.last_modified,
             ),
         )
         # Don't commit here - batch commits for performance
@@ -259,7 +284,7 @@ class SQLiteBackend:
 
         cursor = await self._conn.execute(
             """
-            SELECT url, content_hash, last_scraped, status_code, file_path
+            SELECT url, content_hash, last_scraped, status_code, file_path, etag, last_modified
             FROM pages
             ORDER BY url
             """
@@ -277,6 +302,8 @@ class SQLiteBackend:
                     last_scraped=row["last_scraped"],
                     status_code=row["status_code"],
                     file_path=row["file_path"],
+                    etag=row["etag"],
+                    last_modified=row["last_modified"],
                 )
 
     async def get_queue(self) -> list[tuple[str, str | None]]:

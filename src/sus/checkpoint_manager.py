@@ -150,6 +150,8 @@ class CheckpointManager:
         content_hash: str,
         status_code: int,
         file_path: str,
+        etag: str | None = None,
+        last_modified: str | None = None,
     ) -> None:
         """Add or update page in checkpoint.
 
@@ -158,6 +160,8 @@ class CheckpointManager:
             content_hash: SHA-256 hash of page content
             status_code: HTTP status code
             file_path: Output file path
+            etag: ETag header from response (for conditional requests)
+            last_modified: Last-Modified header from response (for conditional requests)
         """
         page = PageCheckpoint(
             url=url,
@@ -165,8 +169,34 @@ class CheckpointManager:
             last_scraped=datetime.now(UTC).isoformat(),
             status_code=status_code,
             file_path=file_path,
+            etag=etag,
+            last_modified=last_modified,
         )
         await self.backend.add_page(page)
+
+    async def get_conditional_headers(self, url: str) -> dict[str, str]:
+        """Get conditional request headers for a URL.
+
+        Returns If-None-Match and/or If-Modified-Since headers if the page
+        has been previously crawled with ETag/Last-Modified response headers.
+
+        Args:
+            url: URL to get conditional headers for
+
+        Returns:
+            Dict of headers to add to the request (may be empty)
+        """
+        page = await self.backend.get_page(url)
+        if page is None:
+            return {}
+
+        headers: dict[str, str] = {}
+        if page.etag:
+            headers["If-None-Match"] = page.etag
+        if page.last_modified:
+            headers["If-Modified-Since"] = page.last_modified
+
+        return headers
 
     async def has_page(self, url: str) -> bool:
         """Check if page exists in checkpoint.

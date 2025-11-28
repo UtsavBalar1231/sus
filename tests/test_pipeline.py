@@ -113,6 +113,7 @@ async def test_memory_aware_queue_crawl_result_size_estimation() -> None:
     html_content = "<html><body>Test content</body></html>" * 100  # ~3KB
     result = CrawlResult(
         url="https://example.com",
+        final_url="https://example.com",
         html=html_content,
         status_code=200,
         content_type="text/html",
@@ -153,6 +154,7 @@ async def test_pipeline_enqueue_updates_stats() -> None:
 
     result = CrawlResult(
         url="https://example.com",
+        final_url="https://example.com",
         html="<html><body>Test</body></html>",
         status_code=200,
         content_type="text/html",
@@ -194,6 +196,7 @@ async def test_pipeline_worker_processing() -> None:
     for i in range(5):
         result = CrawlResult(
             url=f"https://example.com/page{i}",
+            final_url=f"https://example.com/page{i}",
             html=f"<html><body>Page {i}</body></html>",
             status_code=200,
             content_type="text/html",
@@ -260,6 +263,7 @@ async def test_pipeline_worker_error_tracking() -> None:
     # Enqueue item that will cause error
     result = CrawlResult(
         url="https://example.com/error",
+        final_url="https://example.com/error",
         html="<html><body>Error page</body></html>",
         status_code=200,
         content_type="text/html",
@@ -290,6 +294,7 @@ async def test_pipeline_memory_tracking() -> None:
 
     result = CrawlResult(
         url="https://example.com/large",
+        final_url="https://example.com/large",
         html=large_html,
         status_code=200,
         content_type="text/html",
@@ -318,6 +323,7 @@ async def test_pipeline_is_idle() -> None:
 
     result = CrawlResult(
         url="https://example.com",
+        final_url="https://example.com",
         html="<html><body>Test</body></html>",
         status_code=200,
         content_type="text/html",
@@ -384,6 +390,7 @@ async def test_pipeline_concurrent_workers() -> None:
     for i in range(num_items):
         result = CrawlResult(
             url=f"https://example.com/page{i}",
+            final_url=f"https://example.com/page{i}",
             html=f"<html><body>Page {i}</body></html>",
             status_code=200,
             content_type="text/html",

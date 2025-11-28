@@ -164,6 +164,8 @@ async def _update_checkpoint_if_enabled(
     output_path: str,
     dry_run: bool,
     preview: bool,
+    etag: str | None = None,
+    last_modified: str | None = None,
 ) -> None:
     """Update checkpoint with page information if enabled.
 
@@ -176,6 +178,8 @@ async def _update_checkpoint_if_enabled(
         output_path: Output file path
         dry_run: If True, don't record file path
         preview: If True, don't record file path
+        etag: ETag header from response (for conditional requests)
+        last_modified: Last-Modified header from response (for conditional requests)
     """
     if checkpoint and config.crawling.checkpoint.enabled:
         add_page_result = checkpoint.add_page(
@@ -183,6 +187,8 @@ async def _update_checkpoint_if_enabled(
             content_hash=content_hash,
             status_code=status_code,
             file_path=output_path if not (dry_run or preview) else "",
+            etag=etag,
+            last_modified=last_modified,
         )
         if inspect.iscoroutine(add_page_result):
             await add_page_result
@@ -210,6 +216,16 @@ async def _process_page(
         True if processing succeeded, False if failed
     """
     try:
+        # Handle 304 Not Modified - page unchanged since last crawl
+        # Skip processing but update progress and timestamp
+        if result.not_modified:
+            progress.console.print(f"[dim]→[/] {result.url} [dim](304 Not Modified - skipped)[/]")
+            ctx.stats["pages_crawled"] += 1
+            progress.update(pages_task, advance=1)
+            # Note: We don't update the checkpoint here since content hasn't changed
+            # The existing checkpoint entry remains valid with its current timestamp
+            return True
+
         # Show current page being processed
         progress.console.print(
             f"[dim]→[/] {result.url} [dim]({result.status_code}) {len(result.html):,} bytes[/]"
@@ -300,6 +316,8 @@ async def _process_page(
             str(output_path),
             ctx.dry_run,
             ctx.preview,
+            etag=result.etag,
+            last_modified=result.last_modified,
         )
 
         # Update total if no max_pages set (based on known work)

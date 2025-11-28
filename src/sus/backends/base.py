@@ -29,6 +29,7 @@ class PageCheckpoint:
     """Checkpoint data for a single scraped page.
 
     Tracks content hash and metadata to detect changes on resume.
+    Includes ETag/Last-Modified for conditional requests (304 Not Modified).
     """
 
     url: str
@@ -36,6 +37,8 @@ class PageCheckpoint:
     last_scraped: str  # ISO 8601 timestamp
     status_code: int
     file_path: str
+    etag: str | None = None  # ETag header for conditional requests
+    last_modified: str | None = None  # Last-Modified header for conditional requests
 
 
 class StateBackend(Protocol):

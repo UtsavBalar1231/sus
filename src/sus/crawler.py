@@ -110,6 +110,160 @@ class RateLimiter:
                 await asyncio.sleep(sleep_time)
 
 
+class AdaptiveRateLimiter:
+    """Rate limiter that adapts based on server response patterns.
+
+    Features:
+    - Automatically slows down on 429 Too Many Requests
+    - Speeds up when responses are fast and no errors
+    - Respects Retry-After headers
+    - Maintains average response time window for adaptive behavior
+
+    Example:
+        >>> limiter = AdaptiveRateLimiter(initial_rate=10.0)
+        >>> await limiter.acquire()
+        >>> limiter.record_response(0.1, 200)  # Fast successful response
+    """
+
+    def __init__(
+        self,
+        initial_rate: float = 10.0,
+        min_rate: float = 0.5,
+        max_rate: float = 100.0,
+        burst: int = 50,
+        window_size: int = 100,
+    ) -> None:
+        """Initialize adaptive rate limiter.
+
+        Args:
+            initial_rate: Starting requests per second (default: 10.0)
+            min_rate: Minimum rate (slowest, default: 0.5 req/s)
+            max_rate: Maximum rate (fastest, default: 100.0 req/s)
+            burst: Token bucket burst size (default: 50)
+            window_size: Response time window size for adaptation (default: 100)
+        """
+        self.current_rate = initial_rate
+        self.min_rate = min_rate
+        self.max_rate = max_rate
+        self.burst = burst
+        self.tokens = float(burst)
+        self.last_update = time.time()
+        self._lock = asyncio.Lock()
+
+        # Adaptive tracking
+        from collections import deque
+
+        self._response_times: deque[float] = deque(maxlen=window_size)
+        self._recent_429s = 0
+        self._consecutive_fast = 0
+        self._retry_after_until: float = 0.0
+
+    async def acquire(self) -> None:
+        """Acquire a token, waiting if necessary.
+
+        Respects Retry-After delays from previous 429 responses.
+        """
+        async with self._lock:
+            # Check Retry-After delay
+            now = time.time()
+            if now < self._retry_after_until:
+                wait_time = self._retry_after_until - now
+                logger.debug(f"Respecting Retry-After, waiting {wait_time:.1f}s")
+                await asyncio.sleep(wait_time)
+                now = time.time()
+
+            while True:
+                time_passed = now - self.last_update
+                self.last_update = now
+
+                self.tokens = min(self.burst, self.tokens + time_passed * self.current_rate)
+
+                if self.tokens >= 1.0:
+                    self.tokens -= 1.0
+                    return
+
+                sleep_time = (1.0 - self.tokens) / self.current_rate
+                await asyncio.sleep(sleep_time)
+                now = time.time()
+
+    def record_response(
+        self,
+        response_time: float,
+        status_code: int,
+        retry_after: float | None = None,
+    ) -> None:
+        """Record response and adapt rate accordingly.
+
+        Args:
+            response_time: Time taken for the request in seconds
+            status_code: HTTP status code
+            retry_after: Retry-After header value in seconds (if present)
+        """
+        self._response_times.append(response_time)
+
+        if status_code == 429:  # Too Many Requests
+            self._recent_429s += 1
+            self._consecutive_fast = 0
+
+            # Aggressive slowdown on 429
+            old_rate = self.current_rate
+            self.current_rate = max(self.min_rate, self.current_rate * 0.5)
+            logger.warning(
+                f"429 received, reducing rate from {old_rate:.1f} to {self.current_rate:.1f} req/s"
+            )
+
+            # Respect Retry-After header
+            if retry_after is not None:
+                self._retry_after_until = time.time() + retry_after
+                logger.info(f"Respecting Retry-After: {retry_after:.1f}s")
+
+        elif status_code == 503:  # Service Unavailable
+            # Moderate slowdown
+            self.current_rate = max(self.min_rate, self.current_rate * 0.7)
+            self._consecutive_fast = 0
+
+        elif 200 <= status_code < 300:
+            # Successful response - consider speeding up
+            if response_time < 0.2:  # Fast response (<200ms)
+                self._consecutive_fast += 1
+
+                # Speed up gradually after sustained fast responses
+                if self._consecutive_fast >= 20 and self._recent_429s == 0:
+                    old_rate = self.current_rate
+                    self.current_rate = min(self.max_rate, self.current_rate * 1.1)
+                    if old_rate != self.current_rate:
+                        logger.debug(
+                            f"Fast responses, increasing rate from {old_rate:.1f} "
+                            f"to {self.current_rate:.1f} req/s"
+                        )
+                    self._consecutive_fast = 0
+
+            # Decay 429 counter over time
+            self._recent_429s = max(0, self._recent_429s - 1)
+
+        elif response_time > 2.0:
+            # Slow responses - slow down slightly
+            self.current_rate = max(self.min_rate, self.current_rate * 0.95)
+            self._consecutive_fast = 0
+
+    @property
+    def avg_response_time(self) -> float:
+        """Average response time from recent requests."""
+        if not self._response_times:
+            return 0.0
+        return sum(self._response_times) / len(self._response_times)
+
+    def get_stats(self) -> dict[str, float]:
+        """Get current rate limiter statistics."""
+        return {
+            "current_rate": self.current_rate,
+            "min_rate": self.min_rate,
+            "max_rate": self.max_rate,
+            "avg_response_time": self.avg_response_time,
+            "recent_429s": self._recent_429s,
+        }
+
+
 @dataclass
 class CrawlResult:
     """Result from crawling a single page.
@@ -118,6 +272,7 @@ class CrawlResult:
     """
 
     url: str
+    final_url: str  # Final URL after redirects (from response.url or page.url)
     html: str
     status_code: int
     content_type: str
@@ -125,6 +280,9 @@ class CrawlResult:
     assets: list[str]  # Extracted asset URLs (images, CSS, JS)
     content_hash: str = ""  # SHA-256 hash of HTML content (for change detection)
     queue_size: int = 0  # Current size of crawl queue (for progress tracking)
+    etag: str | None = None  # ETag header for conditional requests
+    last_modified: str | None = None  # Last-Modified header for conditional requests
+    not_modified: bool = False  # True if 304 Not Modified was received
 
 
 @dataclass
@@ -447,6 +605,7 @@ class Crawler:
 
         Implements exponential backoff retry logic and per-domain concurrency
         control. Skips non-HTML content and handles errors gracefully.
+        Supports conditional requests (ETag/If-Modified-Since) for bandwidth savings.
 
         Args:
             url: URL to fetch
@@ -473,9 +632,33 @@ class Crawler:
         async with self.global_semaphore, self.domain_semaphores[domain]:
             await self.rate_limiter.acquire()
 
+            # Get conditional headers from checkpoint if available
+            conditional_headers: dict[str, str] = {}
+            if self.checkpoint and self.config.crawling.checkpoint.enabled:
+                conditional_headers = await self.checkpoint.get_conditional_headers(url)
+
             # Retries handled automatically by RetryTransport
             try:
-                response = await self.client.get(url)
+                response = await self.client.get(url, headers=conditional_headers or None)
+
+                # Handle 304 Not Modified - page unchanged since last crawl
+                if response.status_code == 304:
+                    logger.debug(f"304 Not Modified: {url}")
+                    # Return minimal result indicating no change
+                    # Caller should skip processing but update timestamp
+                    return CrawlResult(
+                        url=url,
+                        final_url=str(response.url),  # Capture final URL even for 304
+                        html="",
+                        status_code=304,
+                        content_type="",
+                        links=[],
+                        assets=[],
+                        content_hash="",
+                        queue_size=self.queue.qsize(),
+                        not_modified=True,
+                    )
+
                 response.raise_for_status()
 
                 content_length = response.headers.get("content-length")
@@ -502,9 +685,12 @@ class Crawler:
                     return None
 
                 html = response.text
-                links_set = self.link_extractor.extract_links(html, url)
+                final_url = str(response.url)  # Capture final URL after redirects
+
+                # Use final_url as base for link/asset extraction
+                links_set = self.link_extractor.extract_links(html, final_url)
                 links = list(links_set)
-                assets = self._extract_assets(html, url)
+                assets = self._extract_assets(html, final_url)
 
                 for link in links:
                     # Normalize link first
@@ -520,11 +706,16 @@ class Crawler:
 
                 content_hash = compute_content_hash(html)
 
+                # Extract ETag and Last-Modified for conditional requests
+                etag = response.headers.get("etag")
+                last_modified = response.headers.get("last-modified")
+
                 # Capture queue size for progress tracking
                 current_queue_size = self.queue.qsize()
 
                 return CrawlResult(
                     url=url,
+                    final_url=final_url,  # Include final URL after redirects
                     html=html,
                     status_code=response.status_code,
                     content_type=content_type,
@@ -532,6 +723,8 @@ class Crawler:
                     assets=assets,
                     content_hash=content_hash,
                     queue_size=current_queue_size,
+                    etag=etag,
+                    last_modified=last_modified,
                 )
 
             except httpx.TooManyRedirects:
@@ -540,7 +733,11 @@ class Crawler:
                     self.stats.error_counts.get("TooManyRedirects", 0) + 1
                 )
                 max_redirects = self.config.crawling.max_redirects
-                print(f"Redirect loop detected: {url} (exceeded {max_redirects} redirects)")
+                logger.warning(
+                    f"Redirect loop detected: {url} (exceeded {max_redirects} redirects). "
+                    f"This may indicate malformed URL extraction from relative links. "
+                    f"Check HTML source for incorrect relative paths."
+                )
                 return None
 
             except httpx.HTTPError as e:
@@ -730,8 +927,10 @@ class Crawler:
                     )
 
                     html = await page.content()
-                    # Extract links and assets in single evaluate call (reduces IPC overhead)
-                    links, assets = await self._extract_content_js(page, url)
+                    final_url = page.url  # Capture final URL after redirects from Playwright
+
+                    # Extract links and assets using final_url as base
+                    links, assets = await self._extract_content_js(page, final_url)
 
                     for link in links:
                         normalized_link = URLNormalizer.normalize_url(link)
@@ -752,6 +951,7 @@ class Crawler:
 
                     return CrawlResult(
                         url=url,
+                        final_url=final_url,  # Include final URL from Playwright
                         html=html,
                         status_code=200,  # Playwright doesn't expose status easily
                         content_type="text/html",
