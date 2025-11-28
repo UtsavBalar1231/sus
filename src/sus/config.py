@@ -415,6 +415,84 @@ class PipelineConfig(BaseModel):
     )
 
 
+class PerformanceConfig(BaseModel):
+    """Performance optimization configuration.
+
+    Controls advanced performance features for high-throughput crawling:
+    - HTTP client backend selection (httpx for HTTP/2, aiohttp for speed)
+    - DNS caching and prefetching
+    - Connection pooling tuning
+    - Batch I/O for file writes
+
+    Target: 100-200+ pages/sec with optimal settings.
+    """
+
+    http_backend: Literal["auto", "httpx", "aiohttp"] = Field(
+        default="auto",
+        description=(
+            "HTTP client backend: "
+            "'auto' (prefer aiohttp for speed, httpx when auth/HTTP2 needed), "
+            "'httpx' (HTTP/2 support, auth), "
+            "'aiohttp' (7.5x faster for HTTP/1.1)"
+        ),
+    )
+    dns_cache_ttl: int = Field(
+        default=300,
+        ge=60,
+        le=3600,
+        description="DNS cache TTL in seconds (default: 300 = 5 minutes)",
+    )
+    dns_max_concurrent: int = Field(
+        default=50,
+        ge=10,
+        le=200,
+        description="Maximum concurrent DNS lookups",
+    )
+    max_connections: int = Field(
+        default=500,
+        ge=50,
+        le=2000,
+        description="Maximum HTTP connections in pool",
+    )
+    max_keepalive_connections: int = Field(
+        default=100,
+        ge=20,
+        le=500,
+        description="Maximum keepalive connections to maintain",
+    )
+    keepalive_expiry: float = Field(
+        default=60.0,
+        ge=10.0,
+        le=300.0,
+        description="Keepalive connection expiry in seconds",
+    )
+    batch_write_size: int = Field(
+        default=20,
+        ge=1,
+        le=100,
+        description="Number of files to batch before flushing to disk",
+    )
+    batch_write_buffer_mb: int = Field(
+        default=50,
+        ge=10,
+        le=500,
+        description="Maximum memory buffer for batched writes in MB",
+    )
+    adaptive_rate_limiting: bool = Field(
+        default=True,
+        description=(
+            "Enable adaptive rate limiting that slows down on 429s and speeds up on fast responses"
+        ),
+    )
+    conditional_requests: bool = Field(
+        default=True,
+        description=(
+            "Use ETag/If-Modified-Since for conditional requests "
+            "(50-90% bandwidth savings on re-crawls)"
+        ),
+    )
+
+
 class CrawlingRules(BaseModel):
     """Crawling behavior configuration.
 
@@ -441,7 +519,7 @@ class CrawlingRules(BaseModel):
         description="Maximum number of pages to crawl (None = unlimited)",
     )
     delay_between_requests: float = Field(
-        default=0.5,
+        default=0.1,  # Reduced from 0.5 for faster crawling
         ge=0.0,
         description="Delay between requests in seconds",
     )
@@ -463,17 +541,17 @@ class CrawlingRules(BaseModel):
         "0 = no jitter, 1 = full jitter (recommended: 0.3)",
     )
     global_concurrent_requests: int = Field(
-        default=50,  # HTTP/2 + connection pooling supports high concurrency
+        default=200,  # Increased from 50 for high-performance crawling
         ge=1,
         description="Global concurrency limit across all domains",
     )
     per_domain_concurrent_requests: int = Field(
-        default=10,  # HTTP/2 multiplexing handles 10+ concurrent streams efficiently
+        default=25,  # Increased from 10 for faster per-domain crawling
         ge=1,
         description="Per-domain concurrency limit",
     )
     rate_limiter_burst_size: int = Field(
-        default=10,  # Increased from 5: Allow larger bursts for faster scraping
+        default=50,  # Increased from 10: Allow larger bursts for faster scraping
         ge=1,
         description="Token bucket burst size for rate limiting",
     )
@@ -532,6 +610,10 @@ class CrawlingRules(BaseModel):
     cache: CacheConfig = Field(
         default_factory=CacheConfig,
         description="HTTP caching configuration",
+    )
+    performance: PerformanceConfig = Field(
+        default_factory=PerformanceConfig,
+        description="Performance optimization configuration",
     )
 
 
