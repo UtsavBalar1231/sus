@@ -50,17 +50,17 @@ crawling:
       type: prefix
 
   # Concurrency limits (lower for JS rendering)
-  global_concurrent_requests: 5
-  per_domain_concurrent_requests: 3
+  # global_concurrent_requests: 5
+  # per_domain_concurrent_requests: 3
 
   # Rate limiting
-  delay_between_requests: 0.5
-  rate_limiter_burst_size: 5
+  # delay_between_requests: 0.5
+  # rate_limiter_burst_size: 5
 
   # JavaScript rendering for React/Next.js SPAs
   javascript:
     mode: auto  # HTTP-first with JS fallback when content is insufficient
-    wait_for: load  # Balanced wait strategy
+    wait_for: domcontentloaded  # Balanced wait strategy
     wait_timeout_ms: 30000  # 30 seconds timeout
     context_pool_size: 10  # Reuse browser contexts for performance
     viewport_width: 1920
@@ -74,13 +74,13 @@ crawling:
   checkpoint:
     enabled: true
     checkpoint_file: .anthropic_checkpoint.json
-    checkpoint_interval_pages: 50
+    checkpoint_interval_pages: 10
     detect_changes: true
     force_redownload_after_days: 7
 
   # Robots.txt compliance
   robots_txt:
-    respect: true
+    respect: false
 
   # Crawl depth
   depth_limit: null
