@@ -1,138 +1,103 @@
 """HTML to Markdown conversion.
 
-HTML documentation converted to Markdown with YAML frontmatter using SusMarkdownConverter
-(markdownify extension with alt text preservation) and ContentConverter (orchestrator).
+HTML documentation converted to Markdown with YAML frontmatter using
+html-to-markdown (Rust-powered, 150-210 MB/s) and ContentConverter (orchestrator).
 """
 
 import logging
 import re
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any, Protocol, cast, runtime_checkable
 
 import yaml
 from lxml import etree as lxml_etree
 from lxml import html as lxml_html
 from lxml.html import HtmlElement
-from markdownify import MarkdownConverter
 
 from sus.config import MarkdownConfig
 from sus.exceptions import ConversionError
 
 logger = logging.getLogger(__name__)
 
+# Check if html-to-markdown is available (Rust-powered, 60-80x faster)
+try:
+    from html_to_markdown import convert as html_to_md_convert
 
-class SusMarkdownConverter(MarkdownConverter):
-    """Custom Markdown converter with better handling for docs.
+    HTML_TO_MD_AVAILABLE = True
+except ImportError:
+    HTML_TO_MD_AVAILABLE = False
+    html_to_md_convert = None  # type: ignore[assignment]
 
-    Overrides specific conversion methods for improved output quality.
+
+@runtime_checkable
+class MarkdownBackend(Protocol):
+    """Protocol for HTML to Markdown converter backends.
+
+    Implementations must provide a convert() method that transforms
+    HTML content into Markdown format.
     """
 
-    def convert_img(self, el: Any, text: str, **kwargs: Any) -> str:
-        """Override image conversion for better alt text handling.
-
-        Preserves alt text when present; uses empty string when absent to
-        avoid None formatting issues in markdown output.
+    def convert(self, html: str) -> str:
+        """Convert HTML to Markdown.
 
         Args:
-            el: HTML image element
-            text: Converted text content (unused for images)
-            **kwargs: Additional arguments from parent class (e.g., convert_as_inline)
+            html: HTML content to convert
 
         Returns:
-            Markdown image syntax: `![alt](src)`
-
-        Examples:
-            ```
-            <img src="logo.png" alt="Company Logo"> → ![Company Logo](logo.png)
-            <img src="icon.png"> → ![](icon.png)
-            ```
+            Markdown content
         """
-        src = el.get("src", "")
-        alt = el.get("alt", "")
+        ...
 
-        # Always include alt text brackets even if empty
-        return f"![{alt}]({src})"
 
-    def convert_pre(self, el: Any, text: str, **kwargs: Any) -> str:
-        """Override code block conversion with language detection.
+class HtmlToMarkdownBackend:
+    """html-to-markdown backend (Rust-powered, high performance).
 
-        Detects language from class attribute (e.g., class="language-python")
-        and formats as fenced code blocks with language specifier.
+    Uses the html-to-markdown library for 60-80x faster conversion.
+    CommonMark compliant output.
+
+    Performance: 150-210 MB/s
+    """
+
+    def convert(self, html: str) -> str:
+        """Convert HTML to Markdown using html-to-markdown (Rust).
 
         Args:
-            el: HTML pre element
-            text: Converted text content
-            **kwargs: Additional arguments from parent class (e.g., parent_tags)
+            html: HTML content to convert
 
         Returns:
-            Markdown fenced code block with language
+            Markdown content
 
-        Examples:
-            <pre><code class="language-python">print("hello")</code></pre>
-            → ```python
-            → print("hello")
-            → ```
-
-            <pre><code>plain text</code></pre>
-            → ```
-            → plain text
-            → ```
+        Raises:
+            RuntimeError: If html-to-markdown is not installed
         """
-        # markdownify uses BeautifulSoup, so we need to use BeautifulSoup's API
-        language = ""
-        code_el = None
-        if hasattr(el, "find"):
-            code_el = el.find("code")
+        if not HTML_TO_MD_AVAILABLE or html_to_md_convert is None:
+            raise RuntimeError(
+                "html-to-markdown package not installed. Install with: pip install html-to-markdown"
+            )
+        return html_to_md_convert(html)
 
-        if code_el is not None:
-            # Look for patterns like "language-python", "lang-python", or just "python"
-            classes = code_el.get("class", "")
 
-            if isinstance(classes, list):
-                classes = " ".join(classes)
+def create_markdown_backend() -> MarkdownBackend:
+    """Create the html-to-markdown backend (Rust-powered).
 
-            if classes:
-                for class_name in classes.split():
-                    # Match "language-X" or "lang-X"
-                    if class_name.startswith("language-"):
-                        language = class_name[9:]  # Remove "language-" prefix
-                        break
-                    elif class_name.startswith("lang-"):
-                        language = class_name[5:]  # Remove "lang-" prefix
-                        break
-                    # Some sites just use the language name as class
-                    elif class_name in {
-                        "python",
-                        "javascript",
-                        "java",
-                        "cpp",
-                        "c",
-                        "ruby",
-                        "go",
-                        "rust",
-                        "php",
-                        "swift",
-                        "kotlin",
-                        "typescript",
-                        "bash",
-                        "sh",
-                        "shell",
-                        "json",
-                        "xml",
-                        "yaml",
-                        "html",
-                        "css",
-                        "sql",
-                    }:
-                        language = class_name
-                        break
+    Returns:
+        HtmlToMarkdownBackend instance
 
-            if hasattr(code_el, "get_text"):
-                text = code_el.get_text()
-            elif hasattr(code_el, "text_content"):
-                text = code_el.text_content()
+    Raises:
+        RuntimeError: If html-to-markdown is not installed
 
-        return f"\n```{language}\n{text}\n```\n"
+    Examples:
+        >>> backend = create_markdown_backend()
+        >>> markdown = backend.convert("<h1>Hello</h1>")
+        >>> "# Hello" in markdown
+        True
+    """
+    if not HTML_TO_MD_AVAILABLE:
+        raise RuntimeError(
+            "html-to-markdown package not installed. Install with: uv add html-to-markdown"
+        )
+    logger.info("Using html-to-markdown backend (Rust-powered)")
+    return HtmlToMarkdownBackend()
 
 
 class ContentConverter:
@@ -143,7 +108,7 @@ class ContentConverter:
 
     Attributes:
         config: MarkdownConfig containing conversion options
-        converter: SusMarkdownConverter instance for HTML→Markdown conversion
+        backend: HtmlToMarkdownBackend for HTML→Markdown conversion
     """
 
     def __init__(self, config: MarkdownConfig) -> None:
@@ -153,13 +118,7 @@ class ContentConverter:
             config: MarkdownConfig from SusConfig
         """
         self.config = config
-
-        # strip: Remove non-content elements that shouldn't be in markdown
-        self.converter = SusMarkdownConverter(
-            heading_style="atx",  # Use # style headers
-            bullets="-",  # Use - for unordered lists
-            strip=["nav", "header", "footer", "aside", "script", "style"],
-        )
+        self.backend = create_markdown_backend()
 
     def convert(
         self,
@@ -207,7 +166,7 @@ class ContentConverter:
         if self.config.content_filtering.enabled:
             html = self._filter_content(html, url)
 
-        markdown = self.converter.convert(html)
+        markdown = self.backend.convert(html)
 
         markdown = self._clean_markdown(markdown)
 
@@ -250,9 +209,8 @@ class ContentConverter:
         """Remove script and style elements completely from HTML.
 
         This is a defensive measure that ensures JavaScript and CSS code
-        never appears as text in the markdown output. Unlike markdownify's
-        'strip' parameter which only removes tags but preserves content,
-        this method removes both the elements and their content.
+        never appears as text in the markdown output. Removes both the
+        elements and their content completely.
 
         Args:
             html: HTML content

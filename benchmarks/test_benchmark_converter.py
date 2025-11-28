@@ -3,13 +3,16 @@
 Tests performance of:
 - ContentConverter.convert() - HTML to Markdown conversion
 - ContentConverter.convert_with_frontmatter() - With YAML frontmatter
-- SusMarkdownConverter - Custom markdownify extensions
+- HtmlToMarkdownBackend (Rust-powered) raw conversion
 """
 
 from pytest_benchmark.fixture import BenchmarkFixture
 
 from sus.config import MarkdownConfig
-from sus.converter import ContentConverter
+from sus.converter import (
+    ContentConverter,
+    HtmlToMarkdownBackend,
+)
 
 
 class TestContentConverterBenchmarks:
@@ -224,3 +227,27 @@ class TestFrontmatterBenchmarks:
         results = benchmark(convert_batch)
         assert len(results) == 10
         assert all("---" in r for r in results)
+
+
+class TestBackendBenchmarks:
+    """Benchmark raw html-to-markdown backend performance."""
+
+    def test_backend_medium(
+        self,
+        benchmark: BenchmarkFixture,
+        medium_html: str,
+    ) -> None:
+        """Benchmark html-to-markdown backend on medium HTML (~10KB)."""
+        backend = HtmlToMarkdownBackend()
+        result = benchmark(backend.convert, medium_html)
+        assert len(result) > 100
+
+    def test_backend_large(
+        self,
+        benchmark: BenchmarkFixture,
+        large_html: str,
+    ) -> None:
+        """Benchmark html-to-markdown backend on large HTML (~100KB)."""
+        backend = HtmlToMarkdownBackend()
+        result = benchmark(backend.convert, large_html)
+        assert len(result) > 1000

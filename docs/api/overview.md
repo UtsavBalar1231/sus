@@ -55,7 +55,7 @@ SUS implements a six-stage pipeline architecture:
 1. **Configuration System** (`config.py`) - Pydantic 2.9+ models with YAML validation
 2. **Crawler Engine** (`crawler.py`) - httpx async client with token bucket rate limiter
 3. **URL Filtering** (`rules.py`) - lxml-based link extraction with pattern matching
-4. **Content Conversion** (`converter.py`) - markdownify HTML parser with frontmatter
+4. **Content Conversion** (`converter.py`) - html-to-markdown (Rust-powered) with frontmatter
 5. **CLI Interface** (`cli.py`) - Typer commands with Rich progress bars
 6. **Testing** (`tests/`) - 139+ pytest tests with mypy --strict compliance
 

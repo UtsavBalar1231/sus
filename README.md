@@ -202,7 +202,7 @@ SUS implements a six-stage pipeline:
 1. **Configuration** - Pydantic 2.9+ models with YAML validation and type coercion
 2. **Crawler** - httpx async client with token bucket rate limiting and robots.txt compliance
 3. **URL Filtering** - lxml link extraction with regex/glob/prefix pattern matching
-4. **Content Conversion** - markdownify HTML parser with YAML frontmatter generation
+4. **Content Conversion** - html-to-markdown (Rust-powered) converter with YAML frontmatter generation
 5. **CLI Interface** - Typer commands with Rich progress bars and real-time statistics
 6. **Testing** - Comprehensive pytest suite with pytest-asyncio and pytest-httpx
 
