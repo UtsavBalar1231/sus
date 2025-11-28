@@ -4,32 +4,42 @@ version = "0.2.0"
 description = "Simple Universal (Docs) Scraper"
 requires-python = ">=3.12"
 dependencies = [
+    "aiofiles>=23.0.0",
+    "aiodns>=3.0.0",
+    "aiohttp>=3.9.0",
+    "aiosqlite>=0.19.0",
+    "cssselect>=1.3.0",
+    "hishel[httpx]>=0.1.0",
     "httpx[http2]>=0.24.0",
     "httpx-retries>=0.2.0",
-    "hishel[httpx]>=0.1.0",
+    "lxml",
+    "lxml-stubs>=0.5.1",
+    "html-to-markdown>=2.0.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.24.0",
+    "mypy>=1.18.2",
+    "pillow>=10.0.0",
+    "playwright>=1.40.0",
+    "psutil>=5.9.0",
     "pydantic>=2.9",
     "pydantic-settings",
-    "typer",
-    "markdownify",
-    "rich",
-    "pyyaml",
-    "lxml",
-    "robotexclusionrulesparser>=1.7.1",
-    "aiofiles>=23.0.0",
-    "aiosqlite>=0.19.0",
-    "psutil>=5.9.0",
-    "cssselect>=1.3.0",
-]
-
-[project.optional-dependencies]
-dev = [
+    "pygments>=2.15.0",
+    "pymdown-extensions>=10.7.0",
     "pytest",
-    "pytest-asyncio",
-    "pytest-cov",
-    "pytest-httpx",
-    "mypy",
-    "ruff",
-    "types-pyyaml",
+    "pytest-asyncio>=1.3.0",
+    "pytest-benchmark>=4.0.0",
+    "pytest-cov>=7.0.0",
+    "pytest-httpserver>=1.0.0",
+    "pytest-httpx>=0.35.0",
+    "pyyaml",
+    "rich",
+    "robotexclusionrulesparser>=1.7.1",
+    "ruff>=0.1.0",
+    "typer",
+    "types-aiofiles>=25.1.0",
+    "types-psutil>=5.9.0",
+    "types-pygments>=2.19.0.20251121",
+    "types-pyyaml>=6.0.12.20250915",
 ]
 
 [project.scripts]
@@ -81,6 +91,12 @@ module = [
     "PIL.*",
     "pygments",
     "pygments.*",
+    "aiohttp",
+    "aiohttp.*",
+    "aiodns",
+    "aiodns.*",
+    "html_to_markdown",
+    "html_to_markdown.*",
 ]
 ignore_missing_imports = true
 
@@ -88,31 +104,3 @@ ignore_missing_imports = true
 asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-
-[dependency-groups]
-dev = [
-    "lxml-stubs>=0.5.1",
-    "types-psutil>=5.9.0",
-    "types-aiofiles>=25.1.0",
-    "pytest-benchmark>=4.0.0",
-    "pytest-httpx>=0.35.0",
-    "pytest-httpserver>=1.0.0",
-    "pytest-asyncio>=1.3.0",
-    "pytest-cov>=7.0.0",
-    "types-pyyaml>=6.0.12.20250915",
-    "mypy>=1.18.2",
-]
-docs = [
-    "mkdocs-material>=9.5.0",
-    "mkdocstrings[python]>=0.24.0",
-    "pymdown-extensions>=10.7.0",
-    "ruff>=0.1.0",
-]
-js = [
-    "playwright>=1.40.0",
-]
-plugins = [
-    "pygments>=2.15.0",
-    "pillow>=10.0.0",
-    "types-pygments>=2.19.0.20251121",
-]
