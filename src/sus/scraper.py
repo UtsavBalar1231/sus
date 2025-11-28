@@ -799,10 +799,10 @@ async def run_scraper(
                     "[cyan]Pipeline mode enabled - using concurrent processing[/]"
                 )
 
-                # Calculate worker count (default: min(10, cpu_count))
+                # Calculate worker count (default: cpu_count - 2, leaving cores for crawler/system)
                 worker_count = config.crawling.pipeline.process_workers
                 if worker_count is None:
-                    worker_count = min(10, os.cpu_count() or 4)
+                    worker_count = max(1, (os.cpu_count() or 4) - 2)
 
                 progress.console.print(f"[cyan]Starting {worker_count} process workers[/]")
 

@@ -193,17 +193,34 @@ class JavaScriptConfig(BaseModel):
 
     Controls browser-based rendering for SPAs and JavaScript-heavy sites.
     Requires optional 'js' dependency: uv sync --group js && playwright install chromium
+
+    Modes:
+    - disabled: Never use JavaScript rendering (fastest, HTTP-only)
+    - enabled: Always use JavaScript rendering (slowest, most complete)
+    - auto: HTTP-first with automatic JS fallback when content is insufficient (recommended)
     """
 
+    mode: Literal["disabled", "enabled", "auto"] = Field(
+        default="disabled",
+        description=(
+            "JS rendering mode: disabled (HTTP-only), enabled (always JS), "
+            "auto (HTTP-first with JS fallback when content quality is low)"
+        ),
+    )
     enabled: bool = Field(
         default=False,
-        description="Enable JavaScript rendering with Playwright browser",
+        description="[DEPRECATED: Use mode instead] Enable JavaScript rendering",
+    )
+    auto_quality_threshold: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        description="Minimum content quality score for auto mode (0.0-1.0). "
+        "Pages below this threshold will be re-fetched with JS rendering.",
     )
     wait_for: Literal["domcontentloaded", "load", "networkidle"] = Field(
-        default="networkidle",
-        description=(
-            "Wait strategy: domcontentloaded (fast), load (images), networkidle (all requests)"
-        ),
+        default="load",
+        description="Wait strategy: domcontentloaded (fast), load (balanced), networkidle (slow)",
     )
     wait_timeout_ms: int = Field(
         default=30000,
@@ -232,11 +249,24 @@ class JavaScriptConfig(BaseModel):
         description="Enable JavaScript execution in browser (disable for debugging)",
     )
     context_pool_size: int = Field(
-        default=5,
+        default=10,
         ge=1,
         le=20,
         description="Number of browser contexts to pool for reuse (reduces overhead)",
     )
+
+    @model_validator(mode="after")
+    def validate_js_config(self) -> "JavaScriptConfig":
+        """Handle backwards compatibility: enabled=True maps to mode='enabled'."""
+        # If user set enabled=True but didn't set mode, upgrade to mode='enabled'
+        if self.enabled and self.mode == "disabled":
+            object.__setattr__(self, "mode", "enabled")
+        return self
+
+    @property
+    def is_js_possible(self) -> bool:
+        """Returns True if JS rendering might be used (mode is enabled or auto)."""
+        return self.mode in ("enabled", "auto")
 
 
 class AuthenticationConfig(BaseModel):
@@ -362,14 +392,14 @@ class PipelineConfig(BaseModel):
     """
 
     enabled: bool = Field(
-        default=False,
+        default=True,
         description="Enable pipeline architecture for concurrent processing",
     )
     process_workers: int | None = Field(
         default=None,
         ge=1,
         le=50,
-        description="Number of process workers (None = min(10, cpu_count))",
+        description="Number of process workers (None = max(1, cpu_count - 2))",
     )
     queue_maxsize: int = Field(
         default=100,
@@ -433,12 +463,12 @@ class CrawlingRules(BaseModel):
         "0 = no jitter, 1 = full jitter (recommended: 0.3)",
     )
     global_concurrent_requests: int = Field(
-        default=25,  # Increased from 10: HTTP/2 + connection pooling supports higher concurrency
+        default=50,  # HTTP/2 + connection pooling supports high concurrency
         ge=1,
         description="Global concurrency limit across all domains",
     )
     per_domain_concurrent_requests: int = Field(
-        default=5,  # Increased from 2: Better utilization of HTTP/2 multiplexing
+        default=10,  # HTTP/2 multiplexing handles 10+ concurrent streams efficiently
         ge=1,
         description="Per-domain concurrency limit",
     )

@@ -20,82 +20,61 @@ site:
     # Platform Documentation (platform.claude.com)
     - https://platform.claude.com/docs/en/agent-sdk/
 
-    # Engineering Blog (www.anthropic.com/engineering)
-    - https://www.anthropic.com/engineering/building-agents-with-the-claude-agent-sdk
-    - https://www.anthropic.com/engineering/building-effective-agents
-    - https://www.anthropic.com/engineering/claude-code-best-practices
-    - https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills
-    - https://www.anthropic.com/engineering/writing-tools-for-agents
-
-    # News & Announcements (www.anthropic.com/news)
-    - https://www.anthropic.com/news/claude-sonnet-4-5
-    - https://www.anthropic.com/news/enabling-claude-code-to-work-more-autonomously
-    - https://www.anthropic.com/news/how-anthropic-teams-use-claude-code
-    - https://www.anthropic.com/news/model-context-protocol
-    - https://www.anthropic.com/news/skills
-
   # Restrict crawling to Anthropic domains
   allowed_domains:
     - docs.claude.com
     - platform.claude.com
-    - anthropic.com
-
-# URL filtering patterns
-# Exclude patterns have higher precedence than include patterns
-include_patterns:
-  - pattern: "/en/api/agent-sdk/"
-    type: prefix
-  - pattern: "/en/docs/agent-sdk/"
-    type: prefix
-  - pattern: "/en/docs/claude-code/"
-    type: prefix
-  - pattern: "/en/release-notes/"
-    type: prefix
-  - pattern: "/engineering/"
-    type: prefix
-  - pattern: "/news/"
-    type: prefix
-
-exclude_patterns:
-  - pattern: "*.pdf"
-    type: glob
-  - pattern: "*/changelog/*"
-    type: glob
-  - pattern: "/api/v1/*"
-    type: prefix
 
 # Crawling configuration
 crawling:
-  concurrency:
-    max_concurrent: 10
-    per_domain: 3  # Conservative for Anthropic domains
+  # URL filtering patterns
+  # Exclude patterns have higher precedence than include patterns
+  include_patterns:
+    - pattern: "/en/api/agent-sdk/"
+      type: prefix
+    - pattern: "/en/docs/agent-sdk/"
+      type: prefix
+    - pattern: "/docs/en/agent-sdk/"
+      type: prefix
+    - pattern: "/en/docs/claude-code/"
+      type: prefix
+    - pattern: "/engineering/"
+      type: prefix
 
-  rate_limiting:
-    delay_between_requests: 0.5  # 2 requests/second
-    burst: 5  # Allow small bursts
+  exclude_patterns:
+    - pattern: "*.pdf"
+      type: glob
+    - pattern: "*/changelog/*"
+      type: glob
+    - pattern: "/api/v1/*"
+      type: prefix
+
+  # Concurrency limits (lower for JS rendering)
+  global_concurrent_requests: 5
+  per_domain_concurrent_requests: 3
+
+  # Rate limiting
+  delay_between_requests: 0.5
+  rate_limiter_burst_size: 5
 
   # JavaScript rendering for React/Next.js SPAs
   javascript:
-    enabled: true
-    wait_for: networkidle  # Wait for network idle (best for SPAs)
+    mode: auto  # HTTP-first with JS fallback when content is insufficient
+    wait_for: load  # Balanced wait strategy
     wait_timeout_ms: 30000  # 30 seconds timeout
-    context_pool_size: 5  # Reuse browser contexts for performance
+    context_pool_size: 10  # Reuse browser contexts for performance
     viewport_width: 1920
     viewport_height: 1080
 
   # Sitemap support for comprehensive crawling
   sitemap:
-    enabled: true
-    auto_discover: true  # Check robots.txt and /sitemap.xml
-    respect_priority: true  # Crawl high-priority pages first
-    max_urls: 1000  # Limit sitemap URLs
-    strict: false  # Skip invalid sitemap entries gracefully
+    enabled: false
 
   # Checkpoint/resume for crash recovery
   checkpoint:
     enabled: true
     checkpoint_file: .anthropic_checkpoint.json
-    checkpoint_interval_pages: 10
+    checkpoint_interval_pages: 50
     detect_changes: true
     force_redownload_after_days: 7
 
@@ -104,7 +83,7 @@ crawling:
     respect: true
 
   # Crawl depth
-  depth_limit: null  # Follow linkslevels deep
+  depth_limit: null
 
 # HTTP configuration
 http:
@@ -144,7 +123,7 @@ assets:
     - css
     - javascript
   max_size_mb: 50
-  concurrent_downloads: 10
+  concurrent_downloads: 32
 
 # Content filtering (optional)
 content:

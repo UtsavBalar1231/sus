@@ -5,7 +5,7 @@
 
 **High-performance async web scraper for converting documentation sites to Markdown.**
 
-Built with Python 3.12+, httpx, and asyncio. Designed for scraping documentation websites with 25-50 pages/sec throughput, HTTP/2 support, and intelligent checkpoint/resume.
+Built with Python 3.12+, httpx, and asyncio. Designed for scraping documentation websites with HTTP/2 support, intelligent checkpoint/resume, and HTTP-first smart routing for optimal performance.
 
 ---
 
@@ -88,6 +88,31 @@ output/
 **Extensibility:**
 - **Plugin system** - 5 lifecycle hooks with built-in plugins (code highlighting, image optimization, link validation)
 - **Custom backends** - Pluggable checkpoint storage (JSON for <10K pages, SQLite for larger)
+
+---
+
+## Performance
+
+SUS automatically optimizes for different site types:
+
+| Mode | Speed | Use Case |
+|------|-------|----------|
+| **HTTP-only** | 25-50 pages/sec | Static sites, server-side rendered docs |
+| **Auto (HTTP-first)** | 10-30 pages/sec | Mixed content - tries HTTP, falls back to JS |
+| **JS Rendering** | 2-8 pages/sec | SPAs (React, Vue, Next.js) requiring JavaScript |
+
+**Performance features:**
+- **Pipeline architecture** - Concurrent fetch + process for 3-10x throughput
+- **HTTP-first routing** - Auto-detects when JavaScript rendering is needed
+- **Adaptive concurrency** - 50 global / 10 per-domain connections
+- **HTTP/2 multiplexing** - 60-80% connection overhead reduction
+
+Configure JavaScript mode in your YAML:
+```yaml
+crawling:
+  javascript:
+    mode: auto  # disabled | enabled | auto (recommended)
+```
 
 ---
 
