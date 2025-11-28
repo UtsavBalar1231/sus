@@ -45,13 +45,13 @@ def test_javascript_config_defaults() -> None:
     """Test JavaScriptConfig default values."""
     config = JavaScriptConfig()
     assert config.enabled is False
-    assert config.wait_for == "networkidle"
+    assert config.wait_for == "load"
     assert config.wait_timeout_ms == 30000
     assert config.user_agent_override is None
     assert config.viewport_width == 1920
     assert config.viewport_height == 1080
     assert config.javascript_enabled is True
-    assert config.context_pool_size == 5
+    assert config.context_pool_size == 10
 
 
 def test_javascript_config_enabled() -> None:
@@ -224,7 +224,7 @@ async def test_ensure_browser_creates_browser() -> None:
 
         assert crawler.playwright_browser is mock_browser
         assert crawler.context_pool is not None
-        assert crawler.context_pool.qsize() == 5  # Default pool size
+        assert crawler.context_pool.qsize() == 10  # Default pool size
     finally:
         sys.modules.pop("playwright", None)
         sys.modules.pop("playwright.async_api", None)
@@ -722,12 +722,14 @@ async def test_fetch_page_js_basic() -> None:
     # Mock Playwright components
     mock_context = AsyncMock()
     mock_page = AsyncMock()
+    mock_page.url = "https://example.com/test"  # Mock final URL after navigation
     mock_page.content = AsyncMock(return_value="<html><body><h1>Test</h1></body></html>")
+    # Mock combined link+asset extraction (single evaluate call)
     mock_page.evaluate = AsyncMock(
-        side_effect=[
-            ["https://example.com/link1", "https://example.com/link2"],  # Links
-            ["https://example.com/style.css"],  # Assets
-        ]
+        return_value={
+            "links": ["https://example.com/link1", "https://example.com/link2"],
+            "assets": ["https://example.com/style.css"],
+        }
     )
     mock_context.new_page = AsyncMock(return_value=mock_page)
 
@@ -941,13 +943,15 @@ async def test_fetch_page_js_updates_stats() -> None:
 
     mock_context = AsyncMock()
     mock_page = AsyncMock()
+    mock_page.url = "https://example.com"  # Mock final URL after navigation
     html_content = "<html><body>Test content</body></html>"
     mock_page.content = AsyncMock(return_value=html_content)
+    # Mock combined link+asset extraction (single evaluate call)
     mock_page.evaluate = AsyncMock(
-        side_effect=[
-            ["https://example.com/link"],
-            ["https://example.com/img.png", "https://example.com/style.css"],
-        ]
+        return_value={
+            "links": ["https://example.com/link"],
+            "assets": ["https://example.com/img.png", "https://example.com/style.css"],
+        }
     )
     mock_context.new_page = AsyncMock(return_value=mock_page)
 
@@ -974,12 +978,14 @@ async def test_fetch_page_js_adds_links_to_queue() -> None:
 
     mock_context = AsyncMock()
     mock_page = AsyncMock()
+    mock_page.url = "https://example.com"  # Mock final URL after navigation
     mock_page.content = AsyncMock(return_value="<html></html>")
+    # Mock combined link+asset extraction (single evaluate call)
     mock_page.evaluate = AsyncMock(
-        side_effect=[
-            ["https://example.com/page1", "https://example.com/page2"],
-            [],
-        ]
+        return_value={
+            "links": ["https://example.com/page1", "https://example.com/page2"],
+            "assets": [],
+        }
     )
     mock_context.new_page = AsyncMock(return_value=mock_page)
 

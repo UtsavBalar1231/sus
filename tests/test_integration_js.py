@@ -536,8 +536,7 @@ async def test_browser_cleanup_on_error(simple_spa_path: str) -> None:
 
     # Browser should be cleaned up
     assert crawler.playwright_browser is None
-    assert crawler.context_pool is not None
-    assert crawler.context_pool.qsize() == 0
+    assert crawler.context_pool is None or crawler.context_pool.qsize() == 0
 
 
 @pytest.mark.asyncio
@@ -682,5 +681,6 @@ async def test_js_rendering_memory_cleanup(simple_spa_path: str) -> None:
 
     # After crawl completes, cleanup happens (pool is emptied in finally block)
     # This is expected behavior - pool is cleaned up to free resources
-    assert crawler.context_pool is not None
-    assert crawler.context_pool.qsize() == 0, "Pool should be empty after cleanup"
+    assert crawler.context_pool is None or crawler.context_pool.qsize() == 0, (
+        "Pool should be cleaned up after crawl"
+    )

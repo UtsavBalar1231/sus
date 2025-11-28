@@ -10,6 +10,7 @@ Tests the robustness of checkpoint backends under crash conditions:
 
 import asyncio
 import json
+import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -239,7 +240,9 @@ class TestSQLiteBackendCorruptionRecovery:
         backend = SQLiteBackend(db_file)
 
         # Should raise error when trying to initialize corrupted DB
-        with pytest.raises((OSError, ValueError)):  # aiosqlite raises various exceptions
+        with pytest.raises(
+            (OSError, ValueError, sqlite3.DatabaseError)
+        ):  # aiosqlite raises various exceptions
             await backend.initialize()
 
     async def test_corrupted_database_with_garbage(self, tmp_path: Path) -> None:
@@ -250,7 +253,7 @@ class TestSQLiteBackendCorruptionRecovery:
         backend = SQLiteBackend(db_file)
 
         # Partial SQLite header with garbage should fail
-        with pytest.raises((OSError, ValueError)):
+        with pytest.raises((OSError, ValueError, sqlite3.DatabaseError)):
             await backend.initialize()
 
     async def test_transaction_atomicity_on_queue_save(self, tmp_path: Path) -> None:

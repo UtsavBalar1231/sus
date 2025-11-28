@@ -420,3 +420,189 @@ def test_query_param_strategy_affects_deduplication() -> None:
     # With preserve strategy, all should be different
     preserved = [URLNormalizer.handle_query_parameters(url, "preserve") for url in urls]
     assert len(set(preserved)) == 3
+
+
+# Path Segment Deduplication Tests (Fix for redirect loops)
+
+
+@pytest.mark.parametrize(
+    "path,expected_path,expected_modified",
+    [
+        # Consecutive duplicates - should be deduplicated
+        ("/docs/docs/page", "/docs/page", True),
+        ("/api/api/v1/v1/", "/api/v1/", True),  # Fixed: consecutive api/api and v1/v1
+        ("/en/docs/docs/en/agent-sdk/", "/en/docs/en/agent-sdk/", True),
+        ("/a/a/a/b/b/c", "/a/b/c", True),
+        # Multiple consecutive duplicates
+        ("/docs/docs/docs/page", "/docs/page", True),
+        ("/api/api/api/api/endpoint", "/api/endpoint", True),
+        # Empty segments (from // in path) - preserved, not deduplicated
+        ("//docs//page", "//docs//page", False),
+        ("///path///to///file", "///path///to///file", False),
+        # Trailing slash preservation
+        ("/docs/docs/", "/docs/", True),
+        ("/api/api/v1/", "/api/v1/", True),
+        # No duplicates - should not be modified
+        ("/api/v1/users/page", "/api/v1/users/page", False),
+        ("/docs/guide/overview", "/docs/guide/overview", False),
+        ("/a/b/c/d", "/a/b/c/d", False),
+        # Non-consecutive duplicates - should NOT be deduplicated
+        ("/api/v1/users/api/", "/api/v1/users/api/", False),
+        ("/docs/guide/docs/", "/docs/guide/docs/", False),
+        # Edge cases
+        ("/", "/", False),
+        ("", "", False),
+        ("/page", "/page", False),
+        ("/a/b", "/a/b", False),
+    ],
+)
+def test_deduplicate_path_segments(path: str, expected_path: str, expected_modified: bool) -> None:
+    """Test path segment deduplication helper function."""
+    result_path, was_modified = URLNormalizer._deduplicate_path_segments(path)
+    assert result_path == expected_path
+    assert was_modified == expected_modified
+
+
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        # Basic deduplication - the Claude docs redirect loop case
+        (
+            "http://docs.claude.com/en/docs/docs/en/agent-sdk/overview",
+            "http://docs.claude.com/en/docs/en/agent-sdk/overview",
+        ),
+        (
+            "https://docs.claude.com/docs/docs/page",
+            "https://docs.claude.com/docs/page",
+        ),
+        # Generic consecutive duplicates
+        (
+            "http://example.com/api/api/v1/users",
+            "http://example.com/api/v1/users",
+        ),
+        (
+            "http://example.com/docs/docs/docs/page",
+            "http://example.com/docs/page",
+        ),
+        # With query parameters
+        (
+            "http://example.com/docs/docs/page?foo=bar",
+            "http://example.com/docs/page?foo=bar",
+        ),
+        (
+            "http://example.com/api/api/endpoint?key=value&id=123",
+            "http://example.com/api/endpoint?key=value&id=123",
+        ),
+        # With fragments (should be removed by normalize_url anyway)
+        (
+            "http://example.com/docs/docs/page#section",
+            "http://example.com/docs/page",
+        ),
+        # With port
+        (
+            "http://example.com:8080/api/api/endpoint",
+            "http://example.com:8080/api/endpoint",
+        ),
+        # With trailing slash
+        (
+            "http://example.com/docs/docs/",
+            "http://example.com/docs/",
+        ),
+        # Non-consecutive duplicates preserved
+        (
+            "http://example.com/api/v1/users/api/",
+            "http://example.com/api/v1/users/api/",
+        ),
+        # No duplicates - unchanged
+        (
+            "http://example.com/api/v1/users",
+            "http://example.com/api/v1/users",
+        ),
+        # Root path
+        (
+            "http://example.com/",
+            "http://example.com/",
+        ),
+        # Complex real-world case
+        (
+            "https://platform.claude.com/docs/docs/en/agent-sdk/overview?utm_source=docs",
+            "https://platform.claude.com/docs/en/agent-sdk/overview?utm_source=docs",
+        ),
+    ],
+)
+def test_normalize_url_with_deduplication(url: str, expected: str) -> None:
+    """Test URL normalization with path segment deduplication integrated."""
+    assert URLNormalizer.normalize_url(url) == expected
+
+
+def test_deduplicate_path_segments_edge_cases() -> None:
+    """Test edge cases for path segment deduplication."""
+    # Empty path
+    path, modified = URLNormalizer._deduplicate_path_segments("")
+    assert path == ""
+    assert modified is False
+
+    # Root only
+    path, modified = URLNormalizer._deduplicate_path_segments("/")
+    assert path == "/"
+    assert modified is False
+
+    # Single segment
+    path, modified = URLNormalizer._deduplicate_path_segments("/docs")
+    assert path == "/docs"
+    assert modified is False
+
+    # All same segments
+    path, modified = URLNormalizer._deduplicate_path_segments("/a/a/a/a/a")
+    assert path == "/a"
+    assert modified is True
+
+
+def test_url_deduplication_preserves_other_normalizations() -> None:
+    """Test that path deduplication works alongside other normalizations."""
+    # Case + port + fragment + deduplication
+    url = "HTTP://Example.COM:80/docs/docs/page#section"
+    result = URLNormalizer.normalize_url(url)
+    assert result == "http://example.com/docs/page"
+
+    # Case + deduplication + query params
+    url2 = "HTTPS://EXAMPLE.COM:443/API/API/endpoint?key=value"
+    result2 = URLNormalizer.normalize_url(url2)
+    assert result2 == "https://example.com/API/endpoint?key=value"
+
+
+def test_url_deduplication_idempotent() -> None:
+    """Test that deduplication is idempotent (running twice yields same result)."""
+    url = "http://example.com/docs/docs/docs/page"
+
+    first_pass = URLNormalizer.normalize_url(url)
+    second_pass = URLNormalizer.normalize_url(first_pass)
+    third_pass = URLNormalizer.normalize_url(second_pass)
+
+    assert first_pass == second_pass == third_pass
+    assert first_pass == "http://example.com/docs/page"
+
+
+def test_malformed_urljoin_scenario() -> None:
+    """Test the exact scenario that causes redirect loops.
+
+    When urljoin() creates malformed URLs from relative paths, the deduplication
+    should fix them.
+    """
+    from urllib.parse import urljoin
+
+    # Simulate malformed URL from urljoin
+    base_url = "https://docs.claude.com/en/docs/agent-sdk/"
+    relative_link = "docs/en/agent-sdk/overview"
+
+    # urljoin creates malformed URL
+    _malformed_url = urljoin(base_url, relative_link)
+    # Result: https://docs.claude.com/en/docs/agent-sdk/docs/en/agent-sdk/overview
+    # Note: This has non-consecutive duplicates which our fix doesn't handle
+    # The REAL redirect loop case is /docs/docs/ which IS consecutive
+
+    # Test the actual consecutive duplicate case from docs.claude.com
+    real_malformed_url = "https://docs.claude.com/en/docs/docs/en/agent-sdk/overview"
+    fixed_url = URLNormalizer.normalize_url(real_malformed_url)
+    assert "/docs/docs/" not in fixed_url
+    assert fixed_url == "https://docs.claude.com/en/docs/en/agent-sdk/overview"
